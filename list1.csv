@@ -1,0 +1,7 @@
+Error,Count
+Connection to DB failed,6
+Permission denied while closing ticket,6
+The ticket was modified while updating,4
+Ticket doesn't exist,1
+Timeout while retrieving information,7
+Tried to add information to closed ticket,6
