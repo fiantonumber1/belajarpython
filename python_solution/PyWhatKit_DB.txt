@@ -1,0 +1,25 @@
+Date: 29/7/2024
+Time: 7:53
+Phone Number: +6281515814752
+Message: Halo, ini adalah pesan otomatis yang dikirim menggunakan pywhatkit setiap 3 menit!
+--------------------
+Date: 29/7/2024
+Time: 7:57
+Phone Number: +6281515814752
+Message: Halo, ini adalah pesan otomatis yang dikirim menggunakan pywhatkit setiap 3 menit!
+--------------------
+Date: 29/7/2024
+Time: 8:2
+Phone Number: +6281515814752
+Message: Halo, ini adalah pesan otomatis yang dikirim menggunakan pywhatkit setiap 3 menit!
+--------------------
+Date: 29/7/2024
+Time: 8:4
+Phone Number: +6281515814752
+Message: Halo, ini adalah pesan otomatis yang dikirim menggunakan pywhatkit setiap 3 menit!
+--------------------
+Date: 29/7/2024
+Time: 8:6
+Phone Number: +6281515814752
+Message: Halo, ini adalah pesan otomatis yang dikirim menggunakan pywhatkit setiap 3 menit!
+--------------------
