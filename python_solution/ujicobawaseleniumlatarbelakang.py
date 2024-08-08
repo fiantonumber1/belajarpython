@@ -4,6 +4,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
+from urllib.parse import quote
 
 # URL endpoint API
 url = "https://diyloveheart.in/api/wamessages/get/rahasia_4321"
@@ -43,7 +44,10 @@ while True:
                 pesan = data['message']
                 idno = data['id']
                 
-                send_url = f'https://web.whatsapp.com/send/?phone={nomor_telepon}&text={pesan}&type=phone_number&app_absent=0'
+                # Meng-encode pesan agar karakter khusus aman dalam URL
+                pesan_encoded = quote(pesan)
+                
+                send_url = f'https://web.whatsapp.com/send/?phone={nomor_telepon}&text={pesan_encoded}&type=phone_number&app_absent=0'
 
                 driver = webdriver.Chrome(executable_path=driver_path, options=options)
 
