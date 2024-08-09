@@ -5,7 +5,7 @@ url = "https://diyloveheart.in/api/wamessages/post"
 
 # Data yang akan dikirim ke API
 data = {
-    "phone_numbers": ["6288228483739"],  # Array of phone numbers
+    "phone_numbers": ["6281515814752"],  # Array of phone numbers
     "message": "Reminder:Agenda rapat hari ini di Ruang 3.3 pada jam: 13.00",
     'idtoken': '2910219210291',
     'accesstoken': '37237232u32y',
