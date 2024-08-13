@@ -10,10 +10,10 @@ from urllib.parse import quote
 url = "https://diyloveheart.in/api/wamessages/get/rahasia_4321"
 
 # Path to WebDriver and Chrome executable
-driver_path = 'C://Users//USER//Downloads//chrome07082024//chromedriver-win64//chromedriver.exe'
-chrome_executable_path = 'C://Users//USER//AppData//Local//Google//Chrome//Application//chrome.exe'
-user_data = 'user-data-dir=C://Users//USER//AppData//Local//Google//Chrome//User Data//Default'
-profile_directory = 'profile-directory=Default'
+driver_path = r'C:\Users\USER\Documents\GitHub\belajarpython\chromedriver.exe'
+chrome_executable_path = r'C:\Users\USER\AppData\Local\Google\Chrome\Application\chrome.exe'
+user_data = r'user-data-dir=C://Users//USER//AppData//Local//Google//Chrome//User Data'
+profile_directory = 'profile-directory=Profile 1'
 
 # Configure options for WebDriver
 options = webdriver.ChromeOptions()
@@ -23,6 +23,9 @@ options.add_argument(user_data)
 options.add_argument(profile_directory)
 options.add_argument('--test-type')
 options.add_experimental_option("excludeSwitches", ['enable-automation'])
+
+# Include the driver path in the options instead of using the deprecated executable_path parameter
+options.add_argument(f'--driver-path={driver_path}')
 
 while True:
     # Send GET request to API
@@ -48,7 +51,7 @@ while True:
                 
                 send_url = f'https://web.whatsapp.com/send/?phone={phone_number}&text={message_encoded}&type=phone_number&app_absent=0'
 
-                driver = webdriver.Chrome(executable_path=driver_path, options=options)
+                driver = webdriver.Chrome(options=options)
 
                 # Set window position and size
                 driver.set_window_position(-10000, 0)  # Move window offscreen
