@@ -13,7 +13,7 @@ url = "https://diyloveheart.in/api/wamessages/get/rahasia_4321"
 driver_path = 'C://Users//fiansyah//Downloads//chrome07082024//chromedriver-win64//chromedriver.exe'
 chrome_executable_path = 'C://Program Files (x86)//Google//Chrome//Application//chrome.exe'
 user_data = 'user-data-dir=C://Users//fiansyah//AppData//Local//Google//Chrome//User Data'
-profile_directory = 'profile-directory=Profile 33'
+profile_directory = 'profile-directory=Profile 32'
 
 # Konfigurasi opsi untuk WebDriver
 options = webdriver.ChromeOptions()
