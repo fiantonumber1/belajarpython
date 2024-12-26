@@ -6,12 +6,11 @@ from io import BytesIO
 from openpyxl.drawing.image import Image
 import re
 from openpyxl.styles import Alignment
-import string
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-import pandas as pd
 from fpdf import FPDF
 import chardet
+import textwrap
 
 
 
@@ -48,57 +47,65 @@ def tqi_kelas(tqi,kelas,inputer):
         return [0,0,0,0,inputer] #BATAS ATAS TRACK QUALITY  (VERY POOR)
     
 
-
 # Fungsi untuk membaca sheet dan mengekspor ke PDF
-def export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title,skiprows):
-    df = pd.read_excel(xlsx_path, sheet_name=sheet_name, skiprows=skiprows)
+def export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, skiprows, startend):
+    df = pd.read_excel(xlsx_path, sheet_name=sheet_name, skiprows=skiprows) if skiprows is not None else pd.read_excel(xlsx_path, sheet_name=sheet_name)
     
-    # Membuat objek FPDF untuk PDF
-    pdf = FPDF(orientation='L', unit='mm', format='A4')  # Mengubah orientasi ke landscape
+    pdf = FPDF(orientation='L', unit='mm', format='A4')
     pdf.set_auto_page_break(auto=True, margin=15)
-    
-    # Menambahkan halaman pertama
     pdf.add_page()
+    pdf.set_font('Arial', 'B', 8)
 
-    # Menambahkan Judul di pojok kiri atas
-    pdf.set_font('Arial', 'B', 8)  # Ukuran font judul lebih kecil
+    # Tambahkan judul
     for line in title:
         pdf.cell(0, 8, txt=line, ln=True, align='L')
-        
-        
-    # Menambahkan spasi setelah judul
+    
     pdf.ln(8)
 
-    # Menambahkan header tabel (nama kolom) dengan font lebih kecil
-    pdf.set_font('Arial', 'B', 8)  # Ukuran font header lebih kecil
-    col_widths = [pdf.get_string_width(col) + 6 for col in df.columns]  # Lebar kolom lebih kecil
-    total_width = sum(col_widths)  # Lebar total tabel
+    # Hitung lebar kolom dengan memperhatikan panjang teks maksimal di setiap kolom
+    max_col_widths = []
+    for col in df.columns:
+        max_width = pdf.get_string_width(str(col)) + 6  # Tambahkan padding
+        for value in df[col]:
+            max_width = max(max_width, pdf.get_string_width(str(value)) + 6)
+        max_col_widths.append(max_width)
 
-    # Membuat tabel header
-    for col, width in zip(df.columns, col_widths):
-        pdf.cell(width, 6, col, border=1, align='C')  # Ukuran baris lebih kecil
-    pdf.ln()
+    if skiprows is None and startend:
+        # Jika menggunakan startend, abaikan header
+        for start, end in startend:
+            if end == 'endrow':
+                subset = df.iloc[start - 1:]
+            else:
+                subset = df.iloc[start - 1:end]
 
-    # Menambahkan isi tabel (data dari dataframe) dengan font lebih kecil
-    pdf.set_font('Arial', '', 6)  # Ukuran font isi tabel lebih kecil
-    for row in df.itertuples(index=False):
-        for col, value in zip(df.columns, row):
-            pdf.cell(col_widths[df.columns.get_loc(col)], 6, str(value), border=1, align='C')  # Ukuran baris lebih kecil
+            # Tambahkan spasi atau garis pemisah untuk memulai tabel baru
+            pdf.ln(10)  # Jarak antar tabel
+            
+            # Isi data tabel tanpa header
+            pdf.set_font('Arial', '', 6)
+            for row in subset.itertuples(index=False):
+                for idx, value in enumerate(row):
+                    pdf.cell(max_col_widths[idx], 6, str(value), border=1, align='C')
+                pdf.ln()
+
+    else:
+        # Jika skiprows terisi atau startend kosong, tambahkan header dan isi data
+        for col, width in zip(df.columns, max_col_widths):
+            pdf.cell(width, 6, col, border=1, align='C')
         pdf.ln()
 
-    # Menambahkan nomor halaman di pojok kanan atas pada setiap halaman
+        for row in df.itertuples(index=False):
+            for idx, value in enumerate(row):
+                pdf.cell(max_col_widths[idx], 6, str(value), border=1, align='C')
+            pdf.ln()
+
     def footer():
-        pdf.set_y(-15)  # Menempatkan nomor halaman di bagian bawah
-        pdf.set_font('Arial', 'I', 6)  # Ukuran font nomor halaman lebih kecil
-        pdf.cell(0, 10, f'Page {pdf.page_no()}', 0, 0, 'R')  # Nomor halaman di pojok kanan atas
+        pdf.set_y(-15)
+        pdf.set_font('Arial', 'I', 6)
+        pdf.cell(0, 10, f'Page {pdf.page_no()}', 0, 0, 'R')
 
-    # Menambahkan footer ke setiap halaman
     pdf.footer = footer
-
-    # Menyimpan PDF ke file output
     pdf.output(output_pdf_path)
-
-
 def generate_pairs(selected_headers):
     pairs = set()  # Gunakan set untuk memastikan pasangan unik
     r_prefixes = ["RIGHT", "Right", "right", "R", "r"]
@@ -194,8 +201,6 @@ def titlecreate(sheet, title, summary_df_2):
         col_letter = col_cells[0].column_letter
         sheet.column_dimensions[col_letter].width = max_length + 2
     return sheet
-
-
 
 
 def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpoint, endpoint, encoding):
@@ -584,7 +589,7 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
                 summary_temporary = pd.DataFrame(columns=columns)
 
                 # Menghitung nilai sementara berdasarkan tqi_kelas
-                temporaryvalue = [tqi_kelas(tqi, i, divider) for tqi in summary_df['TQI Total KAI']]
+                temporaryvalue = [tqi_kelas(tqi, i, divider/4) for tqi in summary_df['TQI Total KAI']]
                 baris1=0
                 baris2=0
                 baris3=0
@@ -675,7 +680,7 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
                 ]
 
                 # Menghitung nilai sementara berdasarkan tqi_kelas
-                temporaryvalue = [tqi_kelas(tqi, i, divider) for tqi in summary_df['TQI Total KAI']]
+                temporaryvalue = [tqi_kelas(tqi, i, divider/4) for tqi in summary_df['TQI Total KAI']]
                 
                 # Inisialisasi variabel akumulasi
                 baris1, baris2, baris3, baris4, baris5 = 0, 0, 0, 0, 0
@@ -783,8 +788,7 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
 
         # Contoh penggunaan
         xlsx_path = 'allparameter.xlsx'  # Ganti dengan path file Excel Anda
-        sheet_name = "StDevSummary_3 (KAI)"  # Ganti dengan nama sheet yang ingin diekspor
-        output_pdf_path = 'TQI Summary Report VMKU.pdf'  # Path untuk menyimpan PDF
+        
 
         title= [
             "DATA TRACK QUALITY INDEX",
@@ -796,20 +800,30 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
             f"TRACK NUMBER: {lines}",
             ""  # Baris kosong
         ]
+        sheet_name = "StDevSummary_3 (KAI)"  # Ganti dengan nama sheet yang ingin diekspor
+        output_pdf_path = 'TQI Summary Report KAI.pdf'  # Path untuk menyimpan PDF
+        
+        export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path,title,7,[])
 
-        export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path,title,7)
+        sheet_name = "StDevSummary_3 (EN)"  # Ganti dengan nama sheet yang ingin diekspor
+        output_pdf_path = 'TQI Summary Report EN.pdf'  # Path untuk menyimpan PDF
+
+        export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path,title,7,[])
 
 
 
        
         indexname = ['I', 'II', 'III', 'IV']
         for i in range(len(indexname)):
-            sheet_name = f"SR KELAS JALAN {indexname[i]}"  # Ganti dengan nama sheet yang ingin diekspor
-            output_pdf_path = f"SR KELAS JALAN {indexname[i]}.pdf"  # Path untuk menyimpan PDF
-            title= [
-                f"SR KELAS JALAN {indexname[i]}",
-            ]
-            export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path,title,2)
+            sheet_name = f"SR KELAS JALAN {indexname[i]}"
+            output_pdf_path = f"SR KELAS JALAN {indexname[i]}.pdf"
+            title = [f"SR KELAS JALAN {indexname[i]}"]
+            export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, 2, [])
+
+            sheet_name = f"SL KELAS JALAN {indexname[i]}"
+            output_pdf_path = f"SL KELAS JALAN {indexname[i]}.pdf"
+            title = [f"SL KELAS JALAN {indexname[i]}"]
+            export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, None, [[4, 5], [8, 'endrow']])
 
         return f"Data berhasil disimpan ke {output_file}"
 
