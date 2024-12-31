@@ -6,11 +6,12 @@ from io import BytesIO
 from openpyxl.drawing.image import Image
 import re
 from openpyxl.styles import Alignment
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font, NamedStyle
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from fpdf import FPDF
 import chardet
-import textwrap
 
 
 
@@ -24,31 +25,53 @@ import textwrap
 
 
 def tqi_kelas(tqi,kelas,inputer):
-    tambahan=0
     if(kelas==0):
-        tambahan=0
+        if tqi<(25):
+            return [inputer,0,0,0,0] #BATAS ATAS TRACK QUALITY  (VERY GOOD)
+        elif (35)>=tqi>(25):
+            return [0,inputer,0,0,0] #BATAS ATAS TRACK QUALITY  (GOOD)
+        elif (50)>=tqi>(35):
+            return [0,0,inputer,0,0] #BATAS ATAS TRACK QUALITY  (FAIR)
+        elif (65)>=tqi>(50):
+            return [0,0,0,inputer,0] #BATAS ATAS TRACK QUALITY  (POOR)
+        else:
+            return [0,0,0,0,inputer] #BATAS ATAS TRACK QUALITY  (VERY POOR)
     elif(kelas==1):
-        tambahan=5
+        if tqi<(30):
+            return [inputer,0,0,0,0] #BATAS ATAS TRACK QUALITY  (VERY GOOD)
+        elif (45)>=tqi>(30):
+            return [0,inputer,0,0,0] #BATAS ATAS TRACK QUALITY  (GOOD)
+        elif (60)>=tqi>(45):
+            return [0,0,inputer,0,0] #BATAS ATAS TRACK QUALITY  (FAIR)
+        elif (75)>=tqi>(60):
+            return [0,0,0,inputer,0] #BATAS ATAS TRACK QUALITY  (POOR)
+        else:
+            return [0,0,0,0,inputer] #BATAS ATAS TRACK QUALITY  (VERY POOR)
     elif(kelas==2):
-        tambahan=10
+        if tqi<(40):
+            return [inputer,0,0,0,0] #BATAS ATAS TRACK QUALITY  (VERY GOOD)
+        elif (55)>=tqi>(40):
+            return [0,inputer,0,0,0] #BATAS ATAS TRACK QUALITY  (GOOD)
+        elif (70)>=tqi>(55):
+            return [0,0,inputer,0,0] #BATAS ATAS TRACK QUALITY  (FAIR)
+        elif (85)>=tqi>(70):
+            return [0,0,0,inputer,0] #BATAS ATAS TRACK QUALITY  (POOR)
+        else:
+            return [0,0,0,0,inputer] #BATAS ATAS TRACK QUALITY  (VERY POOR)
     elif(kelas==3):
-        tambahan=15
+        if tqi<(50):
+            return [inputer,0,0,0,0] #BATAS ATAS TRACK QUALITY  (VERY GOOD)
+        elif (65)>=tqi>(50):
+            return [0,inputer,0,0,0] #BATAS ATAS TRACK QUALITY  (GOOD)
+        elif (80)>=tqi>(65):
+            return [0,0,inputer,0,0] #BATAS ATAS TRACK QUALITY  (FAIR)
+        elif (95)>=tqi>(80):
+            return [0,0,0,inputer,0] #BATAS ATAS TRACK QUALITY  (POOR)
+        else:
+            return [0,0,0,0,inputer] #BATAS ATAS TRACK QUALITY  (VERY POOR)
     
-
-    if tqi<(25+tambahan):
-        return [inputer,0,0,0,0] #BATAS ATAS TRACK QUALITY  (VERY GOOD)
-    elif (40+tambahan)>=tqi>(25+tambahan):
-        return [0,inputer,0,0,0] #BATAS ATAS TRACK QUALITY  (GOOD)
-    elif (55+tambahan)>=tqi>(40+tambahan):
-        return [0,0,inputer,0,0] #BATAS ATAS TRACK QUALITY  (FAIR)
-    elif (70+tambahan)>=tqi>(55+tambahan):
-        return [0,0,0,inputer,0] #BATAS ATAS TRACK QUALITY  (POOR)
-    else:
-        return [0,0,0,0,inputer] #BATAS ATAS TRACK QUALITY  (VERY POOR)
-    
-
 # Fungsi untuk membaca sheet dan mengekspor ke PDF
-def export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, skiprows, startend):
+def export_xlsx_to_pdf_fpdf(xlsx_path, sheet_name, output_pdf_path, title, skiprows, startend):
     df = pd.read_excel(xlsx_path, sheet_name=sheet_name, skiprows=skiprows) if skiprows is not None else pd.read_excel(xlsx_path, sheet_name=sheet_name)
     
     pdf = FPDF(orientation='L', unit='mm', format='A4')
@@ -106,6 +129,73 @@ def export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, skiprows, 
 
     pdf.footer = footer
     pdf.output(output_pdf_path)
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import landscape, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+import pandas as pd
+
+
+def export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, skiprows=None, startend=None):
+    # Baca file Excel dan isi merged cells
+    df = pd.read_excel(xlsx_path, sheet_name=sheet_name, skiprows=skiprows, header=None)
+    df = df.ffill(axis=0)  # Mengisi merged cells ke bawah
+
+    # Inisialisasi PDF
+    pdf = SimpleDocTemplate(output_pdf_path, pagesize=landscape(A4))
+    elements = []
+
+    # Gaya teks dan tabel
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(name='Title', parent=styles['Title'], fontSize=12, spaceAfter=12, alignment=0)
+    cell_style = ParagraphStyle(name='Cell', parent=styles['BodyText'], fontSize=8, leading=10, alignment=1)
+
+    table_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ])
+
+    # Tambahkan judul ke PDF
+    for line in title:
+        elements.append(Paragraph(line, title_style))
+    elements.append(Spacer(1, 12))
+
+    # Fungsi untuk membungkus teks dalam tabel
+    def wrap_text(text):
+        return Paragraph(str(text), cell_style)
+
+    # Handle start dan end jika ada
+    if skiprows is None and startend:
+        for start, end in startend:
+            if end == 'endrow':
+                subset = df.iloc[start - 1:]
+            else:
+                subset = df.iloc[start - 1:end]
+
+            # Konversi data ke dalam format tabel
+            data = [df.iloc[0].tolist()] + [[wrap_text(cell) for cell in row] for row in subset.values.tolist()]
+            table = Table(data, repeatRows=1)
+            table.setStyle(table_style)
+            elements.append(table)
+            elements.append(Spacer(1, 20))
+            elements.append(PageBreak())
+    else:
+        data = [df.iloc[0].tolist()] + [[wrap_text(cell) for cell in row] for row in df.values.tolist()]
+        table = Table(data, repeatRows=1)
+        table.setStyle(table_style)
+        elements.append(table)
+
+    # Build PDF
+    pdf.build(elements)
+
+    
+
 def generate_pairs(selected_headers):
     pairs = set()  # Gunakan set untuk memastikan pasangan unik
     r_prefixes = ["RIGHT", "Right", "right", "R", "r"]
@@ -174,36 +264,153 @@ def automatevalidrow(file_path, selected_headers, encoding):
 
     return start_row, rows_to_read
 
+def center_columns(sheet):
+    # Iterasi melalui setiap kolom di sheet
+    for col in range(1, sheet.max_column + 1):
+        for row in range(1, sheet.max_row + 1):
+            cell = sheet.cell(row=row, column=col)
+            # Cek apakah wrap_text sudah True
+            current_alignment = cell.alignment
+            wrap_status = current_alignment.wrap_text if current_alignment else False
+            # Set alignment center dan pertahankan wrap_text jika sudah ada
+            cell.alignment = Alignment(
+                horizontal='center', 
+                vertical='center', 
+                wrap_text=wrap_status
+            )
 
-def titlecreate(sheet, title, summary_df_2):
-    # Bersihkan seluruh sheet
-    sheet.delete_rows(1, sheet.max_row)
 
-    # Menulis title
-    for idx, value in enumerate(title):
-        sheet.cell(row=idx + 1, column=1, value=value)
-        sheet.cell(row=idx + 1, column=1).alignment = Alignment(horizontal="center")  # Alignment tengah
-
-    # Menulis header summary_df_2 di bawah title
-    header_row = len(title) + 1
-    for col_idx, header in enumerate(summary_df_2.columns, start=1):
-        sheet.cell(row=header_row, column=col_idx, value=header)
-        sheet.cell(row=header_row, column=col_idx).alignment = Alignment(horizontal="center")
-
-    # Menulis data summary_df_2 di bawah header
-    for r_idx, row in enumerate(summary_df_2.itertuples(index=False), start=header_row + 1):
-        for c_idx, value in enumerate(row, start=1):
-            sheet.cell(row=r_idx, column=c_idx, value=value if not pd.isnull(value) else "")
-
-    # Menyesuaikan lebar kolom
-    for col_cells in sheet.columns:
-        max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col_cells)
-        col_letter = col_cells[0].column_letter
-        sheet.column_dimensions[col_letter].width = max_length + 2
     return sheet
 
+def wrapsheet(sheet, start_row=1, width_value=15, height_value=20):
+    # Penyesuaian tinggi baris dan lebar kolom
+    for row in range(start_row, sheet.max_row + 1):
+        max_row_height = 1
+        for col in range(1, sheet.max_column + 1):
+            cell = sheet.cell(row=row, column=col)
+            if cell.value:
+                cell_length = len(str(cell.value))
+                estimated_lines = (cell_length // width_value) + 1
+                max_row_height = max(max_row_height, estimated_lines)
+        
+        sheet.row_dimensions[row].height = max_row_height * height_value
 
-def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpoint, endpoint, encoding):
+    # Penyesuaian lebar kolom
+    for col in range(1, sheet.max_column + 1):
+        max_length = 0
+        col_letter = get_column_letter(col)
+        for row in range(start_row, sheet.max_row + 1):
+            cell = sheet.cell(row=row, column=col)
+            if cell.value:
+                max_length = max(max_length, len(str(cell.value)))
+        
+        adjusted_width = min(max_length + 2, width_value)
+        sheet.column_dimensions[col_letter].width = adjusted_width
+
+    # Lakukan wrap text dengan pengecekan alignment
+    for row in range(start_row, sheet.max_row + 1):
+        for col in range(1, sheet.max_column + 1):
+            cell = sheet.cell(row=row, column=col)
+            if cell.value:
+                if cell.alignment.horizontal == 'center' and cell.alignment.vertical == 'center':
+                    # Jika sudah center, tambahkan wrap_text dengan mempertahankan center alignment
+                    cell.alignment = Alignment(wrap_text=True, horizontal='center', vertical='center')
+                else:
+                    # Jika tidak, hanya set wrap_text
+                    cell.alignment = Alignment(wrap_text=True)
+
+    return sheet
+
+def titlecreate(sheet, title, summary_df_2,position):
+    if position=="normal":
+        # Bersihkan seluruh sheet
+        sheet.delete_rows(1, sheet.max_row)
+
+        # Menulis title
+        for idx, value in enumerate(title):
+            sheet.cell(row=idx + 1, column=1, value=value)
+            sheet.cell(row=idx + 1, column=1).alignment = Alignment(horizontal="center")  # Alignment tengah
+
+        # Menulis header summary_df_2 di bawah title
+        header_row = len(title) + 1
+        for col_idx, header in enumerate(summary_df_2.columns, start=1):
+            sheet.cell(row=header_row, column=col_idx, value=header)
+            sheet.cell(row=header_row, column=col_idx).alignment = Alignment(horizontal="center")
+
+        # Menulis data summary_df_2 di bawah header
+        for r_idx, row in enumerate(summary_df_2.itertuples(index=False), start=header_row + 1):
+            for c_idx, value in enumerate(row, start=1):
+                sheet.cell(row=r_idx, column=c_idx, value=value if not pd.isnull(value) else "")
+
+        # Menyesuaikan lebar kolom
+        for col_cells in sheet.columns:
+            max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col_cells)
+            col_letter = col_cells[0].column_letter
+            sheet.column_dimensions[col_letter].width = max_length + 2
+        return sheet
+    elif position=="center":
+        # Bersihkan seluruh sheet
+        sheet.delete_rows(1, sheet.max_row)
+
+        # Menulis title dan melakukan merge
+        max_col = len(summary_df_2.columns)
+        for idx, value in enumerate(title):
+            merge_start = 1
+            merge_end = max_col if max_col > 1 else 1
+            sheet.merge_cells(start_row=idx + 1, start_column=merge_start, end_row=idx + 1, end_column=merge_end)
+            cell = sheet.cell(row=idx + 1, column=1, value=value)
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        # Menulis header summary_df_2 di bawah title
+        header_row = len(title) + 1
+        for col_idx, header in enumerate(summary_df_2.columns, start=1):
+            sheet.cell(row=header_row, column=col_idx, value=header)
+            sheet.cell(row=header_row, column=col_idx).alignment = Alignment(horizontal="center")
+
+        # Menulis data summary_df_2 di bawah header
+        for r_idx, row in enumerate(summary_df_2.itertuples(index=False), start=header_row + 1):
+            for c_idx, value in enumerate(row, start=1):
+                sheet.cell(row=r_idx, column=c_idx, value=value if not pd.isnull(value) else "")
+
+        # Menyesuaikan lebar kolom (dipersempit agar lebih rapi)
+        for col_idx, col_cells in enumerate(sheet.columns, start=1):
+            max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col_cells)
+            max_length = max_length if max_length > 10 else 10  # Minimum width 10
+            col_letter = get_column_letter(col_idx)
+            sheet.column_dimensions[col_letter].width = max_length + 1  # Dipersempit dengan menambahkan 1 saja
+
+        return sheet
+
+def transform_name(sheet_name):
+    r_prefixes = ["RIGHT", "Right", "right"]
+    l_prefixes = ["LEFT", "Left", "left"]
+    
+    # Jika nama sheet diawali dengan "RIGHT" atau "LEFT"
+    for prefix in r_prefixes + l_prefixes:
+        if sheet_name.startswith(prefix):
+            # Jika diawali dengan prefix, tambahkan "SD_" setelah prefix
+            return sheet_name.replace(prefix, prefix + "SD_", 1)
+    
+    # Jika tidak ada prefix, tambahkan "SD_" di depan
+    return "SD_" + sheet_name
+
+def font_set(workbook, sheet):
+    # Create the style if it doesn't exist
+    # arial_style = NamedStyle(name="arial_style")
+    # arial_style.font = Font(name='Arial', size=11)
+
+    # # Only add the style if it does not already exist in the workbook
+    # if arial_style.name not in workbook.named_styles:
+    #     workbook.add_named_style(arial_style)
+
+    # # Apply the style to each cell in the sheet
+    # for row in sheet.iter_rows():
+    #     for cell in row:
+    #         cell.style = arial_style
+
+    return sheet
+
+def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpoint, endpoint, encoding,idinput):
 
     pairs = generate_pairs(selected_headers)
 
@@ -300,6 +507,8 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
                 # Potong nama sheet jika lebih dari 31 karakter
                 sheet_name = sheet_name_cleaned[:31] if sheet_name_cleaned else f"Sheet{idx + 1}"
 
+                sheet_name = transform_name(sheet_name)
+
                 parameters.append(sheet_name)
 
                 selected_column_data = data.iloc[1:, [data.columns.get_loc(header)]]  # Data dari baris ke-2 dan seterusnya
@@ -350,7 +559,10 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
 
             # Membersihkan setiap elemen dalam pairs
             pairs_cleaned = [
-                (re.sub(r'\[.*?\]', '', param1), re.sub(r'\[.*?\]', '', param2))
+                (
+                    transform_name(re.sub(r'\[.*?\]', '', param1)),
+                    transform_name(re.sub(r'\[.*?\]', '', param2))   
+                 )
                 for param1, param2 in pairs
             ]
 
@@ -359,8 +571,14 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
                 for param1, param2 in pairs_cleaned
             ]
 
-            # Menghilangkan duplikasi di paired_parameters
-            paired_parameters = list(set(param for pair in pairs for param in pair))
+            all_params = []
+            for pair in pairs:
+                for param in pair:
+                    all_params.append(param)
+
+            # Menghilangkan duplikasi
+            paired_parameters = list(set(all_params))
+
 
             
 
@@ -558,6 +776,7 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
                 f"TITIK AKHIR: {endpoint}",
                 f"KM AKHIR: {endvalue}",
                 f"TRACK NUMBER: {lines}",
+                f"ID: {idinput}",
                 ""  # Baris kosong
             ]
 
@@ -571,7 +790,13 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
             workbook = writer.book
             sheet = workbook["StDevSummary_3 (KAI)"]
 
-            sheet=titlecreate(sheet,title,summary_df_2)
+            sheet=titlecreate(sheet,title,summary_df_2,'center')
+            
+            sheet=wrapsheet(sheet,8,15,20)
+            
+            sheet=center_columns(sheet)
+
+            sheet= font_set(workbook,sheet)
 
 
             indexname = ['I', 'II', 'III', 'IV']
@@ -615,13 +840,12 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
                     [np.nan] * 5,
                     [f"KELAS JALAN {indexname[i]}","","","",""],
                     [
-                    'BATAS ATAS TRACK QUALITY (VERY GOOD)',
-                    'BATAS ATAS TRACK QUALITY (GOOD)',
-                    'BATAS ATAS TRACK QUALITY (FAIR)',
-                    'BATAS ATAS TRACK QUALITY (POOR)',
-                    'BATAS ATAS TRACK QUALITY (VERY POOR)'
+                    f'BATAS ATAS TRACK QUALITY (VERY GOOD) TQI < {25+5*i}',
+                    f'BATAS ATAS TRACK QUALITY (GOOD) {25+5*i} <= TQI < {40+5*i}',
+                    f'BATAS ATAS TRACK QUALITY (FAIR) {40+5*i} <= TQI < {55+5*i}',
+                    f'BATAS ATAS TRACK QUALITY (POOR) {55+5*i} <= TQI < {70+5*i}',
+                    f'BATAS ATAS TRACK QUALITY (VERY POOR) {70+5*i} >= TQI',
                     ],
-                    [25+5*i, 40+5*i, 55+5*i, 70+5*i, "Infinity"]
                 ]
 
                 # Menggabungkan baris-baris menjadi satu DataFrame
@@ -642,6 +866,8 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
                     startrow=2, 
                     sheet_name=f"SL KELAS JALAN {indexname[i]}"
                 )
+
+                
                 # Akses workbook dan sheet setelah menulis DataFrame
                 workbook = writer.book
                 sheetkhusus = workbook[f"SL KELAS JALAN {indexname[i]}"]
@@ -650,7 +876,15 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
                     "KLASIFIKASI NILAI TQI  TERHADAP TRACK QUALITY & KELAS JALAN ",
                     f"SESUAI PERDIR NOMOR : PER.U/KI.205/XII/1/KA-2023 ",
                 ]
-                sheetkhusus=titlecreate(sheetkhusus,title_khusus,summary_temporary)
+                
+                sheetkhusus=titlecreate(sheetkhusus,title_khusus,summary_temporary,'center')
+                sheetkhusus=wrapsheet(sheetkhusus,5,15,30)
+                sheetkhusus=center_columns(sheetkhusus)
+
+                sheetkhusus= font_set(workbook,sheetkhusus)
+                
+
+
                 # Hapus baris ke-3
                 # Hapus baris ke-3
                 sheetkhusus.delete_rows(3)
@@ -722,7 +956,16 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
 
                 # Menambahkan judul manual sebelum header
                 title_khusus_2 = ["SUMMARY REPORT",""]
-                sheetkhusus_2 = titlecreate(sheetkhusus_2, title_khusus_2, summary_temporary_2)
+                
+                sheetkhusus_2 = center_columns(sheetkhusus_2)
+                sheetkhusus_2 = titlecreate(sheetkhusus_2, title_khusus_2, summary_temporary_2,'center')
+                sheetkhusus_2=wrapsheet(sheetkhusus_2,3,15,20)
+                sheetkhusus_2=center_columns(sheetkhusus_2)
+
+                sheetkhusus_2= font_set(workbook,sheetkhusus_2)
+
+
+                
 
             summary_df_2_en = summary_df_2.copy()
 
@@ -750,6 +993,7 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
                 f"TITIK AKHIR: {endpoint}",
                 f"KM AKHIR: {endvalue}",
                 f"TRACK NUMBER: {lines}",
+                f"ID: {idinput}",
                 ""  # Baris kosong
             ]
 
@@ -761,7 +1005,11 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
             workbook = writer.book
             sheet3 = workbook["StDevSummary_3 (EN)"]
 
-            sheet3=titlecreate(sheet3,title3,summary_df_3_en)
+            sheet3=titlecreate(sheet3,title3,summary_df_3_en,'center')
+            sheet3=wrapsheet(sheet3,8,15,20)
+            sheet3=center_columns(sheet3)
+
+            sheet3= font_set(workbook,sheet3)
 
             
 
@@ -798,17 +1046,18 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
             f"TITIK AKHIR: {endpoint}",
             f"KM AKHIR: {endvalue}",
             f"TRACK NUMBER: {lines}",
+            f"ID: {idinput}",
             ""  # Baris kosong
         ]
         sheet_name = "StDevSummary_3 (KAI)"  # Ganti dengan nama sheet yang ingin diekspor
         output_pdf_path = 'TQI Summary Report KAI.pdf'  # Path untuk menyimpan PDF
         
-        export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path,title,7,[])
+        export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path,title,8,[])
 
         sheet_name = "StDevSummary_3 (EN)"  # Ganti dengan nama sheet yang ingin diekspor
         output_pdf_path = 'TQI Summary Report EN.pdf'  # Path untuk menyimpan PDF
 
-        export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path,title,7,[])
+        export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path,title,8,[])
 
 
 
@@ -818,19 +1067,17 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
             sheet_name = f"SR KELAS JALAN {indexname[i]}"
             output_pdf_path = f"SR KELAS JALAN {indexname[i]}.pdf"
             title = [f"SR KELAS JALAN {indexname[i]}"]
-            export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, 2, [])
+            export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, None, [[3, 'endrow']])
 
             sheet_name = f"SL KELAS JALAN {indexname[i]}"
             output_pdf_path = f"SL KELAS JALAN {indexname[i]}.pdf"
-            title = [f"SL KELAS JALAN {indexname[i]}"]
+            title = [f"SUMMARY REPORT"]
             export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, None, [[4, 5], [8, 'endrow']])
 
         return f"Data berhasil disimpan ke {output_file}"
 
     except Exception as e:
         return f"Terjadi kesalahan: {str(e)}"
-
-
 
 
 # Daftar divider
@@ -861,6 +1108,9 @@ layout = [
         ], vertical_alignment='top'),  
         sg.VerticalSeparator(),  
         sg.Column([
+            
+            [sg.Text("ID")],
+            [sg.Input(size=(10,1), key="-ID_FIRST-"), sg.Text("-"), sg.Input(size=(10,1), key="-ID_END-")],
             [sg.Text("Track Number")],
             [sg.Input(key="-LINES-")],
             [sg.Text("Titik Awal")],
@@ -933,6 +1183,11 @@ while True:
         startpoint = values["-STARTPOINT-"]
         endpoint = values["-ENDPOINT-"]
 
+        idinput = f"{values['-ID_FIRST-']}-{values['-ID_END-']}"
+
+
+        
+
         if not file_path or not selected_headers:
             window["-OUTPUT-"].update("Harap masukkan file dan pilih parameter yang valid.")
         else:
@@ -941,7 +1196,7 @@ while True:
                 header1, header2 = pair_str.split(' - ')
                 pairs.append((header1, header2))
 
-            result = process_csv(file_path, selected_headers, divider, lines, firstvalue, startpoint, endpoint,encoding)
+            result = process_csv(file_path, selected_headers, divider, lines, firstvalue, startpoint, endpoint,encoding,idinput)
             window["-OUTPUT-"].update(result)
 
 window.close()
