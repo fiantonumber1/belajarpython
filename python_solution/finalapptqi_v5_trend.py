@@ -12,6 +12,11 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from fpdf import FPDF
 import chardet
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import landscape, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
 
 
 
@@ -22,7 +27,6 @@ import chardet
 
 
 ##update V_2 -> menangani jika inputan csv
-
 
 def tqi_kelas(tqi,kelas,inputer):
     if(kelas==0):
@@ -130,17 +134,18 @@ def export_xlsx_to_pdf_fpdf(xlsx_path, sheet_name, output_pdf_path, title, skipr
     pdf.footer = footer
     pdf.output(output_pdf_path)
 
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import landscape, A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import pandas as pd
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-
-def export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, skiprows=None, startend=None):
+def export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, skiprows=None, startend=None, include_header=True):
+    # startend berbasis 1 bukan 0
     # Baca file Excel dan isi merged cells
     df = pd.read_excel(xlsx_path, sheet_name=sheet_name, skiprows=skiprows, header=None)
     df = df.ffill(axis=0)  # Mengisi merged cells ke bawah
+    df = df.fillna("")  # Mengisi sel kosong dengan string kosong
 
     # Inisialisasi PDF
     pdf = SimpleDocTemplate(output_pdf_path, pagesize=landscape(A4))
@@ -151,7 +156,7 @@ def export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, skiprows=N
     title_style = ParagraphStyle(name='Title', parent=styles['Title'], fontSize=12, spaceAfter=12, alignment=0)
     cell_style = ParagraphStyle(name='Cell', parent=styles['BodyText'], fontSize=8, leading=10, alignment=1)
 
-    table_style = TableStyle([
+    table_style = TableStyle([ 
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -168,33 +173,70 @@ def export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, skiprows=N
 
     # Fungsi untuk membungkus teks dalam tabel
     def wrap_text(text):
-        return Paragraph(str(text), cell_style)
+        return Paragraph(str(text) if pd.notna(text) else "", cell_style)
 
     # Handle start dan end jika ada
-    if skiprows is None and startend:
+    if startend:
         for start, end in startend:
-            if end == 'endrow':
-                subset = df.iloc[start - 1:]
-            else:
-                subset = df.iloc[start - 1:end]
+            # Sesuaikan indeks berbasis 1 ke berbasis 0
+            start_index = start - 1
+            end_index = None if end == 'endrow' else end - 1
 
-            # Konversi data ke dalam format tabel
-            data = [df.iloc[0].tolist()] + [[wrap_text(cell) for cell in row] for row in subset.values.tolist()]
-            table = Table(data, repeatRows=1)
+            # Ambil subset data
+            subset = df.iloc[start_index:end_index]
+
+            # Ambil semua data dengan wrap
+            alldata = [[wrap_text(cell) for cell in row] for row in subset.values.tolist()]
+
+            # Pisahkan header dan value dari alldata
+            if include_header:
+                header = alldata[0]  # Baris pertama sebagai header
+                values = alldata[1:]  # Sisanya sebagai values
+            else:
+                header = []
+                values = alldata
+
+            # Gabungkan header dan values jika diperlukan
+            if include_header:
+                data = [header] + values
+            else:
+                data = values
+
+
+            # Membuat tabel
+            table = Table(data, repeatRows=1 if include_header else 0)
             table.setStyle(table_style)
             elements.append(table)
             elements.append(Spacer(1, 20))
             elements.append(PageBreak())
     else:
-        data = [df.iloc[0].tolist()] + [[wrap_text(cell) for cell in row] for row in df.values.tolist()]
-        table = Table(data, repeatRows=1)
+        # Jika tidak ada startend, ambil data seluruhnya
+        alldata = [[wrap_text(cell) for cell in row] for row in df.values.tolist()]
+
+        # Pisahkan header dan value dari alldata
+        if include_header:
+            header = alldata[0]  # Baris pertama sebagai header
+            values = alldata[1:]  # Sisanya sebagai values
+        else:
+            header = []
+            values = alldata
+            
+        # Gabungkan header dan values jika diperlukan
+        if include_header:
+            data = [header] + values
+        else:
+            data = values
+
+
+        # Membuat tabel
+        table = Table(data, repeatRows=1 if include_header else 0)
+            
         table.setStyle(table_style)
         elements.append(table)
 
     # Build PDF
     pdf.build(elements)
 
-    
 
 def generate_pairs(selected_headers):
     pairs = set()  # Gunakan set untuk memastikan pasangan unik
@@ -987,7 +1029,7 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
             
             # Menambahkan title manual sebelum header dan nilai-nilai
             title3= [
-                "DATA TRACK QUALITY INDEX (SESUAI PERDIR NOMOR : PER.U/KI.205/XII/1/KA-2023 )",
+                "DATA TRACK QUALITY INDEX (SESUAI EN 13848-6 CoSD )",
                 f"TITIK AWAL: {startpoint}",
                 f"KM AWAL: {firstvalue}",
                 f"TITIK AKHIR: {endpoint}",
@@ -1008,7 +1050,6 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
             sheet3=titlecreate(sheet3,title3,summary_df_3_en,'center')
             sheet3=wrapsheet(sheet3,8,15,20)
             sheet3=center_columns(sheet3)
-
             sheet3= font_set(workbook,sheet3)
 
             
@@ -1049,15 +1090,28 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
             f"ID: {idinput}",
             ""  # Baris kosong
         ]
+        
         sheet_name = "StDevSummary_3 (KAI)"  # Ganti dengan nama sheet yang ingin diekspor
         output_pdf_path = 'TQI Summary Report KAI.pdf'  # Path untuk menyimpan PDF
         
-        export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path,title,8,[])
+        export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path,title,8,[], include_header=True)
 
         sheet_name = "StDevSummary_3 (EN)"  # Ganti dengan nama sheet yang ingin diekspor
         output_pdf_path = 'TQI Summary Report EN.pdf'  # Path untuk menyimpan PDF
 
-        export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path,title,8,[])
+        title_2= [
+            "DATA TRACK QUALITY INDEX",
+            "DATA TRACK QUALITY INDEX (SESUAI EN 13848-6 CoSD )",
+            f"TITIK AWAL: {startpoint}",
+            f"KM AWAL: {firstvalue}",
+            f"TITIK AKHIR: {endpoint}",
+            f"KM AKHIR: {endvalue}",
+            f"TRACK NUMBER: {lines}",
+            f"ID: {idinput}",
+            ""  # Baris kosong
+        ]
+        
+        export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path,title_2,8,[], include_header=True)
 
 
 
@@ -1067,18 +1121,17 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
             sheet_name = f"SR KELAS JALAN {indexname[i]}"
             output_pdf_path = f"SR KELAS JALAN {indexname[i]}.pdf"
             title = [f"SR KELAS JALAN {indexname[i]}"]
-            export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, None, [[3, 'endrow']])
+            export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, 2, [], include_header=True)
 
             sheet_name = f"SL KELAS JALAN {indexname[i]}"
             output_pdf_path = f"SL KELAS JALAN {indexname[i]}.pdf"
             title = [f"SUMMARY REPORT"]
-            export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, None, [[4, 5], [8, 'endrow']])
+            export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, None, [[4, 7], [9, 'endrow']], include_header=True)
 
         return f"Data berhasil disimpan ke {output_file}"
 
     except Exception as e:
         return f"Terjadi kesalahan: {str(e)}"
-
 
 # Daftar divider
 divider_values = [str(i) for i in range(20, 101, 5)]  # List: "20", "25", "30", ..., "100"
