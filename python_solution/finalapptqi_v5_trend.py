@@ -873,11 +873,17 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
                 rows = [
                     [np.nan] * 5,  # Baris kosong
                     [f"RESUME KELAS JALAN {indexname[i]}","","","",""],
-                    ["TOTAL PANJANG TRACK QUALITY  (VERY GOOD) (M)",
-                     "TOTAL PANJANG TRACK QUALITY  (GOOD) (M)",
-                     "TOTAL PANJANG TRACK QUALITY  (FAIR) (M)",
-                     "TOTAL PANJANG TRACK QUALITY  (POOR) (M)",
-                     "TOTAL PANJANG TRACK QUALITY  (VERY POOR) (M)"],
+                    [
+                    
+                     
+                     
+                    f'TOTAL PANJANG TRACK QUALITY (VERY GOOD) (M) TQI < {25+5*i}',
+                    f'TOTAL PANJANG TRACK QUALITY (GOOD) (M) {25+5*i} <= TQI < {40+5*i}',
+                    f'TOTAL PANJANG TRACK QUALITY (FAIR) (M) {40+5*i} <= TQI < {55+5*i}',
+                    f'TOTAL PANJANG TRACK QUALITY (POOR) (M) {55+5*i} <= TQI < {70+5*i}',
+                    f'TOTAL PANJANG TRACK QUALITY (VERY POOR) (M) {70+5*i} >= TQI',
+                     
+                     ],
                     [baris1,baris2,baris3,baris4,baris5],
                     [np.nan] * 5,
                     [f"KELAS JALAN {indexname[i]}","","","",""],
@@ -950,9 +956,13 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
                 # Definisi kolom DataFrame
                 columns = [
                     'LINTAS', 'TRACK NUMBER', 'KM AWAL (METER)', 'KM AKHIR (METER)', 'PANJANG (METER)',
-                    'TOTAL PANJANG TRACK QUALITY (VERY GOOD) (M)', 'TOTAL PANJANG TRACK QUALITY (GOOD) (M)',
-                    'TOTAL PANJANG TRACK QUALITY (FAIR) (M)', 'TOTAL PANJANG TRACK QUALITY (POOR) (M)',
-                    'TOTAL PANJANG TRACK QUALITY (VERY POOR) (M)', 'TQI EKIVALENT'
+
+                    f'TOTAL PANJANG TRACK QUALITY (VERY GOOD) (M) TQI < {25+5*i}',
+                    f'TOTAL PANJANG TRACK QUALITY (GOOD) (M) {25+5*i} <= TQI < {40+5*i}',
+                    f'TOTAL PANJANG TRACK QUALITY (FAIR) (M) {40+5*i} <= TQI < {55+5*i}',
+                    f'TOTAL PANJANG TRACK QUALITY (POOR) (M) {55+5*i} <= TQI < {70+5*i}',
+                    f'TOTAL PANJANG TRACK QUALITY (VERY POOR) (M) {70+5*i} >= TQI',
+                    'TQI'
                 ]
 
                 # Menghitung nilai sementara berdasarkan tqi_kelas
@@ -977,7 +987,7 @@ def process_csv(file_path, selected_headers, divider, lines, firstvalue, startpo
                 tqiakhiraverage = tqiakhir / len(summary_df['TQI Total KAI'])
 
                 # Menyusun baris data
-                rows = [[f"{startpoint} - {endpoint}", lines, kmawal, kmakhir, sumbaris, baris1, baris2, baris3, baris4, baris5, tqiakhiraverage]]
+                rows = [[f"{startpoint} - {endpoint}", lines, kmawal, kmakhir, sumbaris, baris1, baris2, baris3, baris4, baris5,round(tqiakhiraverage, 2)]]
                 
                 # Membuat DataFrame sementara
                 summary_temporary_2 = pd.DataFrame(rows, columns=columns)

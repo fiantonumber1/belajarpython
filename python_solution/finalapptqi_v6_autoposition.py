@@ -979,11 +979,17 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                 rows = [
                     [np.nan] * 5,  # Baris kosong
                     [f"RESUME KELAS JALAN {indexname[i]}","","","",""],
-                    ["TOTAL PANJANG TRACK QUALITY  (VERY GOOD) (M)",
-                     "TOTAL PANJANG TRACK QUALITY  (GOOD) (M)",
-                     "TOTAL PANJANG TRACK QUALITY  (FAIR) (M)",
-                     "TOTAL PANJANG TRACK QUALITY  (POOR) (M)",
-                     "TOTAL PANJANG TRACK QUALITY  (VERY POOR) (M)"],
+                    [
+                    
+                     
+                     
+                    f'TOTAL PANJANG TRACK QUALITY (VERY GOOD) (M) TQI < {25+5*i}',
+                    f'TOTAL PANJANG TRACK QUALITY (GOOD) (M) {25+5*i} <= TQI < {40+5*i}',
+                    f'TOTAL PANJANG TRACK QUALITY (FAIR) (M) {40+5*i} <= TQI < {55+5*i}',
+                    f'TOTAL PANJANG TRACK QUALITY (POOR) (M) {55+5*i} <= TQI < {70+5*i}',
+                    f'TOTAL PANJANG TRACK QUALITY (VERY POOR) (M) {70+5*i} >= TQI',
+                     
+                     ],
                     [baris1,baris2,baris3,baris4,baris5],
                     [np.nan] * 5,
                     [f"KELAS JALAN {indexname[i]}","","","",""],
@@ -1062,7 +1068,7 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                     f'TOTAL PANJANG TRACK QUALITY (FAIR) (M) {40+5*i} <= TQI < {55+5*i}',
                     f'TOTAL PANJANG TRACK QUALITY (POOR) (M) {55+5*i} <= TQI < {70+5*i}',
                     f'TOTAL PANJANG TRACK QUALITY (VERY POOR) (M) {70+5*i} >= TQI',
-                    'TQI EKIVALENT'
+                    'TQI'
                 ]
 
                 rows = []
