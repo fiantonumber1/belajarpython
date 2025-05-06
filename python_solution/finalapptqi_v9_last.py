@@ -3,6 +3,7 @@ import PySimpleGUI as sg
 import numpy as np
 import matplotlib.pyplot as plt
 from io import BytesIO
+from pathlib import Path
 from openpyxl.drawing.image import Image
 import re
 from openpyxl.styles import Alignment
@@ -74,65 +75,6 @@ def tqi_kelas(tqi,kelas,inputer):
         else:
             return [0,0,0,0,inputer] #BATAS ATAS TRACK QUALITY  (VERY POOR)
     
-# Fungsi untuk membaca sheet dan mengekspor ke PDF
-def export_xlsx_to_pdf_fpdf(xlsx_path, sheet_name, output_pdf_path, title, skiprows, startend):
-    df = pd.read_excel(xlsx_path, sheet_name=sheet_name, skiprows=skiprows) if skiprows is not None else pd.read_excel(xlsx_path, sheet_name=sheet_name)
-    
-    pdf = FPDF(orientation='L', unit='mm', format='A4')
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-    pdf.set_font('Arial', 'B', 8)
-
-    # Tambahkan judul
-    for line in title:
-        pdf.cell(0, 8, txt=line, ln=True, align='L')
-    
-    pdf.ln(8)
-
-    # Hitung lebar kolom dengan memperhatikan panjang teks maksimal di setiap kolom
-    max_col_widths = []
-    for col in df.columns:
-        max_width = pdf.get_string_width(str(col)) + 6  # Tambahkan padding
-        for value in df[col]:
-            max_width = max(max_width, pdf.get_string_width(str(value)) + 6)
-        max_col_widths.append(max_width)
-
-    if skiprows is None and startend:
-        # Jika menggunakan startend, abaikan header
-        for start, end in startend:
-            if end == 'endrow':
-                subset = df.iloc[start - 1:]
-            else:
-                subset = df.iloc[start - 1:end]
-
-            # Tambahkan spasi atau garis pemisah untuk memulai tabel baru
-            pdf.ln(10)  # Jarak antar tabel
-            
-            # Isi data tabel tanpa header
-            pdf.set_font('Arial', '', 6)
-            for row in subset.itertuples(index=False):
-                for idx, value in enumerate(row):
-                    pdf.cell(max_col_widths[idx], 6, str(value), border=1, align='C')
-                pdf.ln()
-
-    else:
-        # Jika skiprows terisi atau startend kosong, tambahkan header dan isi data
-        for col, width in zip(df.columns, max_col_widths):
-            pdf.cell(width, 6, col, border=1, align='C')
-        pdf.ln()
-
-        for row in df.itertuples(index=False):
-            for idx, value in enumerate(row):
-                pdf.cell(max_col_widths[idx], 6, str(value), border=1, align='C')
-            pdf.ln()
-
-    def footer():
-        pdf.set_y(-15)
-        pdf.set_font('Arial', 'I', 6)
-        pdf.cell(0, 10, f'Page {pdf.page_no()}', 0, 0, 'R')
-
-    pdf.footer = footer
-    pdf.output(output_pdf_path)
 
 import pandas as pd
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
@@ -149,6 +91,7 @@ def export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, skiprows=N
 
     # Inisialisasi PDF
     pdf = SimpleDocTemplate(output_pdf_path, pagesize=landscape(A4))
+    pdf.title = " | ".join(title)  # Menambahkan setTitle()
     elements = []
 
     # Gaya teks dan tabel
@@ -238,6 +181,7 @@ def export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, skiprows=N
     pdf.build(elements)
 
 
+
 def generate_pairs(selected_headers):
     pairs = set()  # Gunakan set untuk memastikan pasangan unik
     r_prefixes = ["RIGHT", "Right", "right", "R", "r"]
@@ -272,7 +216,7 @@ def generate_pairs(selected_headers):
 # Fungsi untuk validasi baris yang valid
 def automatevalidrow(file_path, selected_headers, encoding):
     print(encoding)
-    temp_data = pd.read_csv(file_path, sep=';', encoding=encoding, skiprows=1)
+    temp_data = pd.read_csv(file_path, sep=',', encoding=encoding, skiprows=1)
 
     # Validasi header yang dipilih
     if not set(selected_headers).issubset(temp_data.columns):
@@ -281,17 +225,19 @@ def automatevalidrow(file_path, selected_headers, encoding):
     # Filter kolom berdasarkan header yang dipilih
     selected_columns = temp_data[selected_headers]
 
-    # Buang baris yang memiliki nilai 'NV' di kolom yang dipilih
-    selected_columns = selected_columns[~selected_columns.apply(lambda x: x.astype(str).str.contains('NV')).any(axis=1)]
+    # Buang baris yang memiliki nilai 'NV' atau '0.00' di kolom yang dipilih
+    selected_columns = selected_columns[~selected_columns.apply(
+        lambda x: x.astype(str).str.contains('NV|0\.00')
+    ).any(axis=1)]
 
-    # Identifikasi baris dengan angka di semua kolom yang dipilih
+    # Identifikasi baris dengan angka valid di semua kolom yang dipilih
     numeric_rows = selected_columns.applymap(
-        lambda x: isinstance(x, (int, float)) or (isinstance(x, str) and x.replace('.', '', 1).isdigit())
+        lambda x: isinstance(x, (int, float)) and x != 0.00 or
+                  (isinstance(x, str) and x.replace('.', '', 1).isdigit() and x != '0.00')
     ).all(axis=1)
 
     start_row = numeric_rows[numeric_rows == False].index[0] if not numeric_rows.all() else None
     print(f"Start row: {start_row}")
-
 
     if start_row is None:
         return None, 0  # Jika semua baris valid, tidak perlu lanjutkan
@@ -469,7 +415,7 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
         rows_to_skip = [0] + list(range(2, start_row + 2))  # Mulai dari 2 sampai start_row + 1
 
 
-        data = pd.read_csv(file_path, sep=';', encoding=encoding, skiprows=rows_to_skip,nrows=rows_to_read)
+        data = pd.read_csv(file_path, sep=',', encoding=encoding, skiprows=rows_to_skip,nrows=rows_to_read)
         lines=data.iloc[2]['Line']
 
         def loopcheck(data, startloop):
@@ -512,7 +458,7 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
 
         rows_to_skip = [0] + list(range(2, start_row + 2+startloop))  # Mulai dari 2 sampai start_row + 1
 
-        data = pd.read_csv(file_path, sep=';', encoding=encoding, skiprows=rows_to_skip,nrows=rows_to_read-startloop)
+        data = pd.read_csv(file_path, sep=',', encoding=encoding, skiprows=rows_to_skip,nrows=rows_to_read-startloop)
 
         error_string = 'raise error'
         error_rows = data[data.apply(lambda row: row.astype(str).str.contains(error_string).any(), axis=1)].index.tolist()
@@ -735,31 +681,31 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                     {"nama": "Harjamukti", "posisi": 14524},
                     {"nama": "Ciracas", "posisi": 8864},
                     {"nama": "Kampung Rambutan", "posisi": 7262},
-                    {"nama": "TMII", "posisi": 5314},
+                    {"nama": "TMII", "posisi": 5315},
                     {"nama": "TITIK 0", "posisi": 0},
                 ]
             elif(lines=='Line 2'):
                 # Base data untuk Petak Jalan
                 kota = [
-                    {"nama": "Dukuh Atas", "posisi": 9854},
-                    {"nama": "Setiabudi", "posisi": 9060},
-                    {"nama": "Rasuna Said", "posisi": 7664},
-                    {"nama": "Kuningan", "posisi": 6865},
-                    {"nama": "Pancoran", "posisi": 4305},
-                    {"nama": "Cikoko", "posisi": 2221},
-                    {"nama": "Ciliwung", "posisi": 1445},
-                    {"nama": "Cawang", "posisi": 187},
                     {"nama": "TITIK 0", "posisi": 0},
+                     {"nama": "Cawang", "posisi": -187},
+                     {"nama": "Ciliwung", "posisi": -1445},
+                     {"nama": "Cikoko", "posisi": -2221},
+                     {"nama": "Pancoran", "posisi": -4305},
+                    {"nama": "Kuningan", "posisi": -6868},
+                     {"nama": "Rasuna Said", "posisi": -7666},
+                      {"nama": "Setiabudi", "posisi": -9062},
+                      {"nama": "Dukuh Atas", "posisi": -9853},
                 ]
             elif(lines=='Line 3'):
                 # Base data untuk Petak Jalan
                 kota = [
-                    {"nama": "Jati Mulya", "posisi": 17405},
-                    {"nama": "Bekasi Barat", "posisi": 13701},
-                    {"nama": "Cikunir 2", "posisi": 10437},
-                    {"nama": "Cikunir 1", "posisi": 9170},
-                    {"nama": "Jatibening Baru", "posisi": 6501},
-                    {"nama": "Halim", "posisi": 1363},
+                    {"nama": "Jati Mulya", "posisi": 17408},
+                    {"nama": "Bekasi Barat", "posisi": 13702},
+                    {"nama": "Cikunir 2", "posisi": 10441},
+                    {"nama": "Cikunir 1", "posisi": 9172},
+                    {"nama": "Jatibening Baru", "posisi": 6508},
+                    {"nama": "Halim", "posisi": 1367},
                     {"nama": "TITIK 0", "posisi": 0},
                 ]
             # Base data untuk Petak Jalan
@@ -779,11 +725,19 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
             base_data = buat_base_data(kota)
 
             # Menentukan `datakota` berdasarkan `trend`
-            datakota = [
-                {"nama": item["nama"][::-1], "first": item["end"], "end": item["first"]}
-                if trend == "up" else item
-                for item in base_data
-            ]
+            datakota = []
+            for item in base_data:
+                if trend == "up":
+                    nama_split = item["nama"].split("-")
+                    nama_balik = f"{nama_split[1]}-{nama_split[0]}"
+                    datakota.append({
+                        "nama": nama_balik,
+                        "first": item["end"],
+                        "end": item["first"]
+                    })
+                else:
+                    datakota.append(item)
+
 
             
 
@@ -1018,13 +972,13 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                     index=False, 
                     header=False, 
                     startrow=2, 
-                    sheet_name=f"SL KELAS JALAN {indexname[i]}"
+                    sheet_name=f"KLASIFIKASI KELAS JALAN {indexname[i]}"
                 )
 
                 
                 # Akses workbook dan sheet setelah menulis DataFrame
                 workbook = writer.book
-                sheetkhusus = workbook[f"SL KELAS JALAN {indexname[i]}"]
+                sheetkhusus = workbook[f"KLASIFIKASI KELAS JALAN {indexname[i]}"]
                 # Menambahkan title manual sebelum header dan nilai-nilai
                 title_khusus = [
                     "KLASIFIKASI NILAI TQI  TERHADAP TRACK QUALITY & KELAS JALAN ",
@@ -1058,6 +1012,12 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                 sheetkhusus.cell(row=8, column=1).alignment = Alignment(horizontal="center", vertical="center")
 
 
+            if trend == "down":
+                pass  # Tidak terjadi apa-apa
+            elif trend == "up":
+                datakota.reverse()  # Membalik urutan datakota
+            
+            
             for i in range(len(indexname)):
                 # Definisi kolom DataFrame
                 columns = [
@@ -1107,7 +1067,7 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                         kota["nama"], lines, kmawal, kmakhir, 
                         sumbaris, baris1, baris2, baris3, baris4, baris5,round(tqiakhiraverage, 2)
                     ])
-    
+
                 # Membuat DataFrame sementara
                 summary_temporary_2 = pd.DataFrame(rows, columns=columns)
 
@@ -1116,14 +1076,14 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                     writer,
                     index=False,
                     header=True,
-                    sheet_name=f"SR KELAS JALAN {indexname[i]}"
+                    sheet_name=f"SUMMARY REPORT KELAS JALAN {indexname[i]}"
                 )
 
                 
 
                 # Akses workbook dan sheet untuk modifikasi lebih lanjut
                 workbook = writer.book
-                sheetkhusus_2 = workbook[f"SR KELAS JALAN {indexname[i]}"]
+                sheetkhusus_2 = workbook[f"SUMMARY REPORT KELAS JALAN {indexname[i]}"]
 
                 # Menambahkan judul manual sebelum header
                 title_khusus_2 = ["SUMMARY REPORT",""]
@@ -1134,9 +1094,6 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                 sheetkhusus_2=center_columns(sheetkhusus_2)
 
                 sheetkhusus_2= font_set(workbook,sheetkhusus_2)
-
-
-                
 
             summary_df_2_en = summary_df_2.copy()
 
@@ -1226,12 +1183,12 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
         ]
         
         sheet_name = "StDevSummary_3 (KAI)"  # Ganti dengan nama sheet yang ingin diekspor
-        output_pdf_path = 'TQI Summary Report KAI.pdf'  # Path untuk menyimpan PDF
+        output_pdf_path = 'REPORT TQI KAI.pdf'  # Path untuk menyimpan PDF
         
         export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path,title,8,[], include_header=True)
 
         sheet_name = "StDevSummary_3 (EN)"  # Ganti dengan nama sheet yang ingin diekspor
-        output_pdf_path = 'TQI Summary Report EN.pdf'  # Path untuk menyimpan PDF
+        output_pdf_path = 'REPORT TQI EN.pdf'  # Path untuk menyimpan PDF
 
         title_2= [
             "DATA TRACK QUALITY INDEX",
@@ -1252,14 +1209,18 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
        
         indexname = ['I', 'II', 'III', 'IV']
         for i in range(len(indexname)):
-            sheet_name = f"SR KELAS JALAN {indexname[i]}"
-            output_pdf_path = f"SR KELAS JALAN {indexname[i]}.pdf"
-            title = [f"SR KELAS JALAN {indexname[i]}"]
+            sheet_name = f"SUMMARY REPORT KELAS JALAN {indexname[i]}"
+            output_pdf_path = f"SUMMARY REPORT KELAS JALAN {indexname[i]}.pdf"
+            title = [f"SUMMARY REPORT KELAS JALAN {indexname[i]}"]
             export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, 2, [], include_header=True)
 
-            sheet_name = f"SL KELAS JALAN {indexname[i]}"
-            output_pdf_path = f"SL KELAS JALAN {indexname[i]}.pdf"
-            title = [f"SUMMARY REPORT"]
+            sheet_name = f"KLASIFIKASI KELAS JALAN {indexname[i]}"
+            output_pdf_path = f"KLASIFIKASI KELAS JALAN {indexname[i]}.pdf"
+            title = [
+                f"KLASIFIKASI NILAI TQI TERHADAP TRACK QUALITY & KELAS JALAN",
+                f"SESUAI PERDIR NOMOR : PER.U/KI.205/XII/1/KA-2023",
+                f"Base Raw Data: {Path(file_path).name}",
+                ]
             export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, None, [[4, 7], [9, 'endrow']], include_header=True)
 
         return "Sukses"
@@ -1322,7 +1283,7 @@ while True:
     if event == "Preview Header":
         file_path = values["-FILE-"]
         if not file_path:
-            window["-OUTPUT-"].update("Harap pilih file Excel terlebih dahulu.")
+            window["-OUTPUT-"].update("Harap pilih file CSV terlebih dahulu.")
         else:
             try:
                 def detect_encoding(file_path):
@@ -1333,7 +1294,7 @@ while True:
                     return result['encoding']
                 encoding = detect_encoding(file_path)
 
-                data = pd.read_csv(file_path , sep=';', encoding=encoding, skiprows=1)
+                data = pd.read_csv(file_path , sep=',', encoding=encoding, skiprows=1)
 
                 headers = data.columns.tolist()
                 window["-HEADERS-"].update(headers)

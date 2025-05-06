@@ -272,7 +272,7 @@ def generate_pairs(selected_headers):
 # Fungsi untuk validasi baris yang valid
 def automatevalidrow(file_path, selected_headers, encoding):
     print(encoding)
-    temp_data = pd.read_csv(file_path, sep=';', encoding=encoding, skiprows=1)
+    temp_data = pd.read_csv(file_path, sep=',', encoding=encoding, skiprows=1)
 
     # Validasi header yang dipilih
     if not set(selected_headers).issubset(temp_data.columns):
@@ -281,17 +281,19 @@ def automatevalidrow(file_path, selected_headers, encoding):
     # Filter kolom berdasarkan header yang dipilih
     selected_columns = temp_data[selected_headers]
 
-    # Buang baris yang memiliki nilai 'NV' di kolom yang dipilih
-    selected_columns = selected_columns[~selected_columns.apply(lambda x: x.astype(str).str.contains('NV')).any(axis=1)]
+    # Buang baris yang memiliki nilai 'NV' atau '0.00' di kolom yang dipilih
+    selected_columns = selected_columns[~selected_columns.apply(
+        lambda x: x.astype(str).str.contains('NV|0\.00')
+    ).any(axis=1)]
 
-    # Identifikasi baris dengan angka di semua kolom yang dipilih
+    # Identifikasi baris dengan angka valid di semua kolom yang dipilih
     numeric_rows = selected_columns.applymap(
-        lambda x: isinstance(x, (int, float)) or (isinstance(x, str) and x.replace('.', '', 1).isdigit())
+        lambda x: isinstance(x, (int, float)) and x != 0.00 or
+                  (isinstance(x, str) and x.replace('.', '', 1).isdigit() and x != '0.00')
     ).all(axis=1)
 
     start_row = numeric_rows[numeric_rows == False].index[0] if not numeric_rows.all() else None
     print(f"Start row: {start_row}")
-
 
     if start_row is None:
         return None, 0  # Jika semua baris valid, tidak perlu lanjutkan
@@ -469,7 +471,7 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
         rows_to_skip = [0] + list(range(2, start_row + 2))  # Mulai dari 2 sampai start_row + 1
 
 
-        data = pd.read_csv(file_path, sep=';', encoding=encoding, skiprows=rows_to_skip,nrows=rows_to_read)
+        data = pd.read_csv(file_path, sep=',', encoding=encoding, skiprows=rows_to_skip,nrows=rows_to_read)
         lines=data.iloc[2]['Line']
 
         def loopcheck(data, startloop):
@@ -512,7 +514,7 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
 
         rows_to_skip = [0] + list(range(2, start_row + 2+startloop))  # Mulai dari 2 sampai start_row + 1
 
-        data = pd.read_csv(file_path, sep=';', encoding=encoding, skiprows=rows_to_skip,nrows=rows_to_read-startloop)
+        data = pd.read_csv(file_path, sep=',', encoding=encoding, skiprows=rows_to_skip,nrows=rows_to_read-startloop)
 
         error_string = 'raise error'
         error_rows = data[data.apply(lambda row: row.astype(str).str.contains(error_string).any(), axis=1)].index.tolist()
@@ -779,11 +781,19 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
             base_data = buat_base_data(kota)
 
             # Menentukan `datakota` berdasarkan `trend`
-            datakota = [
-                {"nama": item["nama"][::-1], "first": item["end"], "end": item["first"]}
-                if trend == "up" else item
-                for item in base_data
-            ]
+            datakota = []
+            for item in base_data:
+                if trend == "up":
+                    nama_split = item["nama"].split("-")
+                    nama_balik = f"{nama_split[1]}-{nama_split[0]}"
+                    datakota.append({
+                        "nama": nama_balik,
+                        "first": item["end"],
+                        "end": item["first"]
+                    })
+                else:
+                    datakota.append(item)
+
 
             
 
@@ -1322,7 +1332,7 @@ while True:
     if event == "Preview Header":
         file_path = values["-FILE-"]
         if not file_path:
-            window["-OUTPUT-"].update("Harap pilih file Excel terlebih dahulu.")
+            window["-OUTPUT-"].update("Harap pilih file CSV terlebih dahulu.")
         else:
             try:
                 def detect_encoding(file_path):
@@ -1333,7 +1343,7 @@ while True:
                     return result['encoding']
                 encoding = detect_encoding(file_path)
 
-                data = pd.read_csv(file_path , sep=';', encoding=encoding, skiprows=1)
+                data = pd.read_csv(file_path , sep=',', encoding=encoding, skiprows=1)
 
                 headers = data.columns.tolist()
                 window["-HEADERS-"].update(headers)

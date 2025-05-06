@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Monitor Jarvis</title>
+    <meta http-equiv="refresh" content="5" />
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+      img {
+        max-width: 100%;
+        border: 1px solid #ccc;
+      }
+      textarea {
+        width: 100%;
+        height: 200px;
+      }
+      button {
+        margin: 5px;
+        padding: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Status AI Jarvis</h2>
+
+    <h3>Screenshot Terbaru</h3>
+    <img src="/{{ screenshot }}" alt="screenshot" />
+
+    <h3>Log Aksi</h3>
+    <textarea readonly>{{ log }}</textarea>
+
+    <h3>Output Command Prompt</h3>
+    <textarea readonly>{{ cmd_output }}</textarea>
+
+    <br />
+    <a href="/stop"><button>Stop AI</button></a>
+    <a href="/download"><button>Download ZIP Hasil</button></a>
+  </body>
+</html>

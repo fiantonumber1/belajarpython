@@ -1,0 +1,36 @@
+API Request Error: 400 Client Error: Bad Request for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyBiPYVsVqi5R6HIU-2iSjJxrNIlw-TygQA, Response: {
+  "error": {
+    "code": 400,
+    "message": "Invalid JSON payload received. Unknown name \"additionalProperties\" at 'generation_config.response_schema.one_of[0]': Cannot find field.\nInvalid JSON payload received. Unknown name \"additionalProperties\" at 'generation_config.response_schema.one_of[1]': Cannot find field.\nInvalid JSON payload received. Unknown name \"additionalProperties\" at 'generation_config.response_schema.one_of[2]': Cannot find field.\nInvalid JSON payload received. Unknown name \"additionalProperties\" at 'generation_config.response_schema.one_of[3]': Cannot find field.\nInvalid JSON payload received. Unknown name \"additionalProperties\" at 'generation_config.response_schema.one_of[4]': Cannot find field.",
+    "status": "INVALID_ARGUMENT",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.BadRequest",
+        "fieldViolations": [
+          {
+            "field": "generation_config.response_schema.one_of[0]",
+            "description": "Invalid JSON payload received. Unknown name \"additionalProperties\" at 'generation_config.response_schema.one_of[0]': Cannot find field."
+          },
+          {
+            "field": "generation_config.response_schema.one_of[1]",
+            "description": "Invalid JSON payload received. Unknown name \"additionalProperties\" at 'generation_config.response_schema.one_of[1]': Cannot find field."
+          },
+          {
+            "field": "generation_config.response_schema.one_of[2]",
+            "description": "Invalid JSON payload received. Unknown name \"additionalProperties\" at 'generation_config.response_schema.one_of[2]': Cannot find field."
+          },
+          {
+            "field": "generation_config.response_schema.one_of[3]",
+            "description": "Invalid JSON payload received. Unknown name \"additionalProperties\" at 'generation_config.response_schema.one_of[3]': Cannot find field."
+          },
+          {
+            "field": "generation_config.response_schema.one_of[4]",
+            "description": "Invalid JSON payload received. Unknown name \"additionalProperties\" at 'generation_config.response_schema.one_of[4]': Cannot find field."
+          }
+        ]
+      }
+    ]
+  }
+}
+
+{"status": "selesai"}
