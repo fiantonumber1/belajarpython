@@ -196,8 +196,8 @@ for i in range(8161, 8171):
         "messages": [
             {"role": "user", "content": prompt_text}
         ],
-        "output": latex_content.strip(),
-        "reward": final_reward
+        "latex": latex_content.strip(),
+        "valid": is_valid
     }
 
     with open(output_file, "a", encoding="utf-8") as f:
