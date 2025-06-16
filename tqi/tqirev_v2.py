@@ -1,453 +1,33 @@
+from tqi_module import generate_pairs,export_xlsx_to_pdf,center_columns, get_valid_block_range,wrapsheet,titlecreate,tqi_kelas,font_set,transform_name,upordown,databasekota,segment_length_function
+import re 
 import pandas as pd
-import PySimpleGUI as sg
 import numpy as np
+import PySimpleGUI as sg
+import chardet
 import matplotlib.pyplot as plt
 from io import BytesIO
-from pathlib import Path
-from openpyxl.drawing.image import Image
-import re          
+from openpyxl.drawing.image import Image    
 from openpyxl.styles import Alignment
-from openpyxl.utils import get_column_letter
-from openpyxl.styles import Font, NamedStyle
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
-from fpdf import FPDF
-import chardet
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import landscape, A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from pathlib import Path
 
+# Sample per meter didefinisikan setiap 4 baris didefenisikan sebagai 1 meter
+SAMPLES_PER_METER = 4  # Jumlah sampel per meter
 
+# Meter capture values adalah nilai yang ingin dinilai misal nanti ingin check tqi dari suatu range misal tiap 40 meter 1 nilai tqi pilih opsi 40
+meter_capture_values = [str(i) for i in range(20, 101, 5)]  # List: "20", "25", "30", ..., "100"
+meter_capture_values.extend([str(200), str(1000)])
 
+# Kelas jalur yang digunakan untuk klasifikasi
+track_classes = ['I', 'II', 'III', 'IV']
 
 
-#### Kodingan ini berhasil untuk sistem custom untuk data mas ibnu dan sedang mengalami penyesuaian agar bisa merespon
-#### data dari pak ndaru yang baru
-#### Fitur preview dan choose, otomatis logic
+isZeroValid=False  # Variabel untuk menentukan apakah NaN dianggap valid atau tidak
 
 
-##update V_2 -> menangani jika inputan csv
+# Fungsi untuk memproses file CSV dan menyimpan hasilnya ke file Excel
+def process_csv(file_path, selected_headers, block_size, origin_kilometer, encoding,idinput):
 
-def tqi_kelas(tqi,kelas,inputer):
-    if(kelas==0):
-        if tqi<(25):
-            return [inputer,0,0,0,0] #BATAS ATAS TRACK QUALITY  (VERY GOOD)
-        elif (35)>=tqi>(25):
-            return [0,inputer,0,0,0] #BATAS ATAS TRACK QUALITY  (GOOD)
-        elif (50)>=tqi>(35):
-            return [0,0,inputer,0,0] #BATAS ATAS TRACK QUALITY  (FAIR)
-        elif (65)>=tqi>(50):
-            return [0,0,0,inputer,0] #BATAS ATAS TRACK QUALITY  (POOR)
-        else:
-            return [0,0,0,0,inputer] #BATAS ATAS TRACK QUALITY  (VERY POOR)
-    elif(kelas==1):
-        if tqi<(30):
-            return [inputer,0,0,0,0] #BATAS ATAS TRACK QUALITY  (VERY GOOD)
-        elif (45)>=tqi>(30):
-            return [0,inputer,0,0,0] #BATAS ATAS TRACK QUALITY  (GOOD)
-        elif (60)>=tqi>(45):
-            return [0,0,inputer,0,0] #BATAS ATAS TRACK QUALITY  (FAIR)
-        elif (75)>=tqi>(60):
-            return [0,0,0,inputer,0] #BATAS ATAS TRACK QUALITY  (POOR)
-        else:
-            return [0,0,0,0,inputer] #BATAS ATAS TRACK QUALITY  (VERY POOR)
-    elif(kelas==2):
-        if tqi<(40):
-            return [inputer,0,0,0,0] #BATAS ATAS TRACK QUALITY  (VERY GOOD)
-        elif (55)>=tqi>(40):
-            return [0,inputer,0,0,0] #BATAS ATAS TRACK QUALITY  (GOOD)
-        elif (70)>=tqi>(55):
-            return [0,0,inputer,0,0] #BATAS ATAS TRACK QUALITY  (FAIR)
-        elif (85)>=tqi>(70):
-            return [0,0,0,inputer,0] #BATAS ATAS TRACK QUALITY  (POOR)
-        else:
-            return [0,0,0,0,inputer] #BATAS ATAS TRACK QUALITY  (VERY POOR)
-    elif(kelas==3):
-        if tqi<(50):
-            return [inputer,0,0,0,0] #BATAS ATAS TRACK QUALITY  (VERY GOOD)
-        elif (65)>=tqi>(50):
-            return [0,inputer,0,0,0] #BATAS ATAS TRACK QUALITY  (GOOD)
-        elif (80)>=tqi>(65):
-            return [0,0,inputer,0,0] #BATAS ATAS TRACK QUALITY  (FAIR)
-        elif (95)>=tqi>(80):
-            return [0,0,0,inputer,0] #BATAS ATAS TRACK QUALITY  (POOR)
-        else:
-            return [0,0,0,0,inputer] #BATAS ATAS TRACK QUALITY  (VERY POOR)
-    
-
-import pandas as pd
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-
-def export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, skiprows=None, startend=None, include_header=True):
-    # startend berbasis 1 bukan 0
-    # Baca file Excel dan isi merged cells
-    df = pd.read_excel(xlsx_path, sheet_name=sheet_name, skiprows=skiprows, header=None)
-    df = df.ffill(axis=0)  # Mengisi merged cells ke bawah
-    df = df.fillna("")  # Mengisi sel kosong dengan string kosong
-
-    # Inisialisasi PDF
-    pdf = SimpleDocTemplate(output_pdf_path, pagesize=landscape(A4))
-    pdf.title = " | ".join(title)  # Menambahkan setTitle()
-    elements = []
-
-    # Gaya teks dan tabel
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(name='Title', parent=styles['Title'], fontSize=12, spaceAfter=12, alignment=0)
-    cell_style = ParagraphStyle(name='Cell', parent=styles['BodyText'], fontSize=8, leading=10, alignment=1)
-
-    table_style = TableStyle([ 
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-    ])
-
-    # Tambahkan judul ke PDF
-    for line in title:
-        elements.append(Paragraph(line, title_style))
-    elements.append(Spacer(1, 12))
-
-    # Fungsi untuk membungkus teks dalam tabel
-    def wrap_text(text):
-        return Paragraph(str(text) if pd.notna(text) else "", cell_style)
-
-    # Handle start dan end jika ada
-    if startend:
-        for start, end in startend:
-            # Sesuaikan indeks berbasis 1 ke berbasis 0
-            start_index = start - 1
-            end_index = None if end == 'endrow' else end - 1
-
-            # Ambil subset data
-            subset = df.iloc[start_index:end_index]
-
-            # Ambil semua data dengan wrap
-            alldata = [[wrap_text(cell) for cell in row] for row in subset.values.tolist()]
-
-            # Pisahkan header dan value dari alldata
-            if include_header:
-                header = alldata[0]  # Baris pertama sebagai header
-                values = alldata[1:]  # Sisanya sebagai values
-            else:
-                header = []
-                values = alldata
-
-            # Gabungkan header dan values jika diperlukan
-            if include_header:
-                data = [header] + values
-            else:
-                data = values
-
-
-            # Membuat tabel
-            table = Table(data, repeatRows=1 if include_header else 0)
-            table.setStyle(table_style)
-            elements.append(table)
-            elements.append(Spacer(1, 20))
-            elements.append(PageBreak())
-    else:
-        # Jika tidak ada startend, ambil data seluruhnya
-        alldata = [[wrap_text(cell) for cell in row] for row in df.values.tolist()]
-
-        # Pisahkan header dan value dari alldata
-        if include_header:
-            header = alldata[0]  # Baris pertama sebagai header
-            values = alldata[1:]  # Sisanya sebagai values
-        else:
-            header = []
-            values = alldata
-            
-        # Gabungkan header dan values jika diperlukan
-        if include_header:
-            data = [header] + values
-        else:
-            data = values
-
-
-        # Membuat tabel
-        table = Table(data, repeatRows=1 if include_header else 0)
-            
-        table.setStyle(table_style)
-        elements.append(table)
-
-    # Build PDF
-    pdf.build(elements)
-
-
-
-def generate_pairs(selected_headers):
-    pairs = set()  # Gunakan set untuk memastikan pasangan unik
-    r_prefixes = ["RIGHT", "Right", "right", "R", "r"]
-    l_prefixes = ["LEFT", "Left", "left", "L", "l"]
-    
-    for header in selected_headers:
-        # Cek jika header dimulai dengan salah satu awalan di r_prefixes
-        for r_prefix in r_prefixes:
-            if header.startswith(r_prefix):
-                for l_prefix in l_prefixes:
-                    pair = header.replace(r_prefix, l_prefix, 1)
-                    if pair in selected_headers:
-                        # Urutkan pasangan sebelum dimasukkan ke dalam set
-                        pairs.add(tuple(sorted((header, pair))))
-                        break
-                break
-        
-        # Cek jika header dimulai dengan salah satu awalan di l_prefixes
-        for l_prefix in l_prefixes:
-            if header.startswith(l_prefix):
-                for r_prefix in r_prefixes:
-                    pair = header.replace(l_prefix, r_prefix, 1)
-                    if pair in selected_headers:
-                        # Urutkan pasangan sebelum dimasukkan ke dalam set
-                        pairs.add(tuple(sorted((header, pair))))
-                        break
-                break
-    
-    # Ubah set ke list agar lebih mudah digunakan
-    return list(pairs)
-
-# Fungsi untuk validasi baris yang valid
-def automatevalidrow(file_path, selected_headers, encoding):
-    print(encoding)
-    temp_data = pd.read_csv(file_path, sep=',', encoding=encoding, skiprows=1)
-
-    # Validasi header yang dipilih
-    if not set(selected_headers).issubset(temp_data.columns):
-        raise ValueError("Beberapa header yang dipilih tidak ada di file CSV.")
-
-    # Filter kolom berdasarkan header yang dipilih
-    selected_columns = temp_data[selected_headers].copy()
-
-    # Ganti nilai 0 atau 0.00 dengan NaN untuk kolom numerik
-    for col in selected_columns.columns:
-        if selected_columns[col].dtype in ['float64', 'int64']:  # Hanya untuk kolom numerik
-            selected_columns[col] = selected_columns[col].replace([0, 0.00], np.nan)
-
-    # Buang baris yang memiliki nilai 'NV' atau hanya NaN di kolom yang dipilih
-    selected_columns = selected_columns[~selected_columns.apply(
-        lambda x: x.astype(str).str.contains('NV', na=False)
-    ).any(axis=1)]
-
-    # Identifikasi baris dengan angka valid di semua kolom yang dipilih
-    numeric_rows = selected_columns.notna().all(axis=1)
-
-    start_row = numeric_rows[numeric_rows == False].index[0] if not numeric_rows.all() else None
-    print(f"Start row: {start_row}")
-
-    if start_row is None:
-        return None, 0  # Jika semua baris valid, tidak perlu lanjutkan
-
-    # Mencari end_row (baris terakhir yang False)
-    end_row = numeric_rows[numeric_rows == False].index[-1]  # Baris terakhir yang False
-    print(f"End row: {end_row}")
-
-    # Menghitung jumlah baris yang akan dibaca
-    rows_to_read = end_row - start_row + 1
-    print(f"Rows to read: {rows_to_read}")
-
-    return start_row, rows_to_read
-
-def center_columns(sheet):
-    # Iterasi melalui setiap kolom di sheet
-    for col in range(1, sheet.max_column + 1):
-        for row in range(1, sheet.max_row + 1):
-            cell = sheet.cell(row=row, column=col)
-            # Cek apakah wrap_text sudah True
-            current_alignment = cell.alignment
-            wrap_status = current_alignment.wrap_text if current_alignment else False
-            # Set alignment center dan pertahankan wrap_text jika sudah ada
-            cell.alignment = Alignment(
-                horizontal='center', 
-                vertical='center', 
-                wrap_text=wrap_status
-            )
-
-
-    return sheet
-
-def wrapsheet(sheet, start_row=1, width_value=15, height_value=20):
-    # Penyesuaian tinggi baris dan lebar kolom
-    for row in range(start_row, sheet.max_row + 1):
-        max_row_height = 1
-        for col in range(1, sheet.max_column + 1):
-            cell = sheet.cell(row=row, column=col)
-            if cell.value:
-                cell_length = len(str(cell.value))
-                estimated_lines = (cell_length // width_value) + 1
-                max_row_height = max(max_row_height, estimated_lines)
-        
-        sheet.row_dimensions[row].height = max_row_height * height_value
-
-    # Penyesuaian lebar kolom
-    for col in range(1, sheet.max_column + 1):
-        max_length = 0
-        col_letter = get_column_letter(col)
-        for row in range(start_row, sheet.max_row + 1):
-            cell = sheet.cell(row=row, column=col)
-            if cell.value:
-                max_length = max(max_length, len(str(cell.value)))
-        
-        adjusted_width = min(max_length + 2, width_value)
-        sheet.column_dimensions[col_letter].width = adjusted_width
-
-    # Lakukan wrap text dengan pengecekan alignment
-    for row in range(start_row, sheet.max_row + 1):
-        for col in range(1, sheet.max_column + 1):
-            cell = sheet.cell(row=row, column=col)
-            if cell.value:
-                if cell.alignment.horizontal == 'center' and cell.alignment.vertical == 'center':
-                    # Jika sudah center, tambahkan wrap_text dengan mempertahankan center alignment
-                    cell.alignment = Alignment(wrap_text=True, horizontal='center', vertical='center')
-                else:
-                    # Jika tidak, hanya set wrap_text
-                    cell.alignment = Alignment(wrap_text=True)
-
-    return sheet
-
-def titlecreate(sheet, title, summary_df_2,position):
-    if position=="normal":
-        # Bersihkan seluruh sheet
-        sheet.delete_rows(1, sheet.max_row)
-
-        # Menulis title
-        for idx, value in enumerate(title):
-            sheet.cell(row=idx + 1, column=1, value=value)
-            sheet.cell(row=idx + 1, column=1).alignment = Alignment(horizontal="center")  # Alignment tengah
-
-        # Menulis header summary_df_2 di bawah title
-        header_row = len(title) + 1
-        for col_idx, header in enumerate(summary_df_2.columns, start=1):
-            sheet.cell(row=header_row, column=col_idx, value=header)
-            sheet.cell(row=header_row, column=col_idx).alignment = Alignment(horizontal="center")
-
-        # Menulis data summary_df_2 di bawah header
-        for r_idx, row in enumerate(summary_df_2.itertuples(index=False), start=header_row + 1):
-            for c_idx, value in enumerate(row, start=1):
-                sheet.cell(row=r_idx, column=c_idx, value=value if not pd.isnull(value) else "")
-
-        # Menyesuaikan lebar kolom
-        for col_cells in sheet.columns:
-            max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col_cells)
-            col_letter = col_cells[0].column_letter
-            sheet.column_dimensions[col_letter].width = max_length + 2
-        return sheet
-    elif position=="center":
-        # Bersihkan seluruh sheet
-        sheet.delete_rows(1, sheet.max_row)
-
-        # Menulis title dan melakukan merge
-        max_col = len(summary_df_2.columns)
-        for idx, value in enumerate(title):
-            merge_start = 1
-            merge_end = max_col if max_col > 1 else 1
-            sheet.merge_cells(start_row=idx + 1, start_column=merge_start, end_row=idx + 1, end_column=merge_end)
-            cell = sheet.cell(row=idx + 1, column=1, value=value)
-            cell.alignment = Alignment(horizontal="center", vertical="center")
-
-        # Menulis header summary_df_2 di bawah title
-        header_row = len(title) + 1
-        for col_idx, header in enumerate(summary_df_2.columns, start=1):
-            sheet.cell(row=header_row, column=col_idx, value=header)
-            sheet.cell(row=header_row, column=col_idx).alignment = Alignment(horizontal="center")
-
-        # Menulis data summary_df_2 di bawah header
-        for r_idx, row in enumerate(summary_df_2.itertuples(index=False), start=header_row + 1):
-            for c_idx, value in enumerate(row, start=1):
-                sheet.cell(row=r_idx, column=c_idx, value=value if not pd.isnull(value) else "")
-
-        # Menyesuaikan lebar kolom (dipersempit agar lebih rapi)
-        for col_idx, col_cells in enumerate(sheet.columns, start=1):
-            max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col_cells)
-            max_length = max_length if max_length > 10 else 10  # Minimum width 10
-            col_letter = get_column_letter(col_idx)
-            sheet.column_dimensions[col_letter].width = max_length + 1  # Dipersempit dengan menambahkan 1 saja
-
-        return sheet
-
-def transform_name(sheet_name):
-    r_prefixes = ["RIGHT", "Right", "right"]
-    l_prefixes = ["LEFT", "Left", "left"]
-    
-    # Jika nama sheet diawali dengan "RIGHT" atau "LEFT"
-    for prefix in r_prefixes + l_prefixes:
-        if sheet_name.startswith(prefix):
-            # Jika diawali dengan prefix, tambahkan "SD_" setelah prefix
-            return sheet_name.replace(prefix, prefix + "SD_", 1)
-    
-    # Jika tidak ada prefix, tambahkan "SD_" di depan
-    return "SD_" + sheet_name
-
-def font_set(workbook, sheet):
-    # Create the style if it doesn't exist
-    # arial_style = NamedStyle(name="arial_style")
-    # arial_style.font = Font(name='Arial', size=11)
-
-    # # Only add the style if it does not already exist in the workbook
-    # if arial_style.name not in workbook.named_styles:
-    #     workbook.add_named_style(arial_style)
-
-    # # Apply the style to each cell in the sheet
-    # for row in sheet.iter_rows():
-    #     for cell in row:
-    #         cell.style = arial_style
-
-    return sheet
-
-def upordown(before,after):
-    if before > after:
-        return "down"
-    elif before < after:
-        return "up"
-    else:
-        return "same"  # Jika nilai sebelum dan sesudah sama
-
-def databasekota(lines):
-    kota = []
-    if(lines=='Line 1'):
-        # Base data untuk Petak Jalan
-        kota = [
-            {"nama": "Harjamukti", "posisi": 14524},
-            {"nama": "Ciracas", "posisi": 8864},
-            {"nama": "Kampung Rambutan", "posisi": 7262},
-            {"nama": "TMII", "posisi": 5315},
-            {"nama": "TITIK 0", "posisi": 0},
-        ]
-    elif(lines=='Line 2'):
-        # Base data untuk Petak Jalan
-        kota = [
-            {"nama": "TITIK 0", "posisi": 0},
-             {"nama": "Cawang", "posisi": -187},
-             {"nama": "Ciliwung", "posisi": -1445},
-             {"nama": "Cikoko", "posisi": -2221},
-             {"nama": "Pancoran", "posisi": -4305},
-            {"nama": "Kuningan", "posisi": -6868},
-             {"nama": "Rasuna Said", "posisi": -7666},
-              {"nama": "Setiabudi", "posisi": -9062},
-              {"nama": "Dukuh Atas", "posisi": -9853},
-        ]
-    elif(lines=='Line 3'):
-        # Base data untuk Petak Jalan
-        kota = [
-            {"nama": "Jati Mulya", "posisi": 17408},
-            {"nama": "Bekasi Barat", "posisi": 13702},
-            {"nama": "Cikunir 2", "posisi": 10441},
-            {"nama": "Cikunir 1", "posisi": 9172},
-            {"nama": "Jatibening Baru", "posisi": 6508},
-            {"nama": "Halim", "posisi": 1367},
-            {"nama": "TITIK 0", "posisi": 0},
-        ]
-    return kota
-
-def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinput):
-
-    sstartpoint = ""
+    startpoint = ""
     endpoint = ""
     kotadilewati = []
     pairs = generate_pairs(selected_headers)
@@ -455,17 +35,10 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
     try:
         trend = "up"
         
-        start_row, rows_to_read = automatevalidrow(file_path, selected_headers, encoding)
+        start_row, rows_to_read = get_valid_block_range(file_path, selected_headers, encoding)
         rows_to_skip = [0] + list(range(2, start_row + 2))  # Mulai dari 2 sampai start_row + 1
-
         data = pd.read_csv(file_path, sep=',', encoding=encoding, skiprows=rows_to_skip, nrows=rows_to_read)
         
-        # Ganti nilai 0 atau 0.00 dengan NaN untuk kolom numerik
-        for col in selected_headers:
-            if data[col].dtype in ['float64', 'int64']:
-                data[col] = data[col].replace([0, 0.00], np.nan)
-
-        # Lanjutkan dengan logika yang sudah ada
         # Cek apakah trend naik atau turun
         before = data.iloc[0]['Km']
         after = data.iloc[1]['Km']
@@ -474,40 +47,41 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
         lines = data.iloc[2]['Line']
 
         def loopcheck(data, startloop):
+            # """
+            #Mengambil informasi kilometer dari baris data tertentu.
+            #
+            #Parameters:
+            #    data (DataFrame): Data berisi kolom 'Km'.
+            #    startloop (int): Indeks baris saat ini.
+            #
+            #Returns:
+            #    tuple: (origin_kilometer, meter_start, checkvalue, startloop)
+            #
+
+            # Ambil nilai kilometer bulat
             startloop += 1
             if startloop >= len(data):
                 raise IndexError("Index `start` melebihi jumlah baris pada data.")
-
-
-
-            firstvalue =  int(data.iloc[startloop]['Km'])# meter
-
+            origin_kilometer =  int(data.iloc[startloop]['Km']) # kilometer
             meter_start = int(data.iloc[startloop]['Km']*1000 - int(data.iloc[startloop]['Km']) * 1000)
-
             checkvalue = int(data.iloc[startloop]['Km'] * 10000) % 10
-
-
-            before=data.iloc[startloop]['Km']
-            after=data.iloc[startloop+1]['Km']
-            trend = upordown(before,after)
-
-            return firstvalue, meter_start, checkvalue, startloop,trend
+            return origin_kilometer, meter_start, checkvalue, startloop
 
         meter_start, checkvalue, startloop = 0, 0, -1
 
-        if firstvalue == "":
+        if origin_kilometer == "":
             try:
-                firstvalue, meter_start, checkvalue, startloop,trend = loopcheck(data, startloop)
+                origin_kilometer, meter_start, checkvalue, startloop = loopcheck(data, startloop)
                 max_iterations = len(data)
                 while not (1.9 <= checkvalue <= 3.1) and startloop < max_iterations:
-                    firstvalue, meter_start, checkvalue, startloop,trend = loopcheck(data, startloop)
+                    origin_kilometer, meter_start, checkvalue, startloop = loopcheck(data, startloop)
                     print("Ditemukan baris dengan checkvalue 1.9 <= checkvalue <= 3.1")
                 if startloop >= max_iterations:
                     print("Tidak ditemukan baris dengan checkvalue 1.9 <= checkvalue <= 3.1")
             except IndexError:
                 print("Tidak ditemukan baris dengan checkvalue 1.9 <= checkvalue <= 3.1")
         else:
-            firstvalue = float(firstvalue)
+            origin_kilometer = float(origin_kilometer)
 
         rows_to_skip = [0] + list(range(2, start_row + 2+startloop))  # Mulai dari 2 sampai start_row + 1
 
@@ -524,9 +98,9 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
         # Filter kolom berdasarkan header yang dipilih
         selected_columns = data[selected_headers]
 
-        # Validasi nilai divider
-        if divider <= 0:
-            raise ValueError("Divider harus berupa bilangan positif.")
+        # Validasi nilai block_size
+        if block_size <= 0:
+            raise ValueError("block_size harus berupa bilangan positif.")
 
         # Validasi data kosong setelah filter
         if selected_columns.empty:
@@ -562,9 +136,9 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
 
                 selected_column_data = data.iloc[1:, [data.columns.get_loc(header)]]  # Data dari baris ke-2 dan seterusnya
 
-                # Membagi data menjadi blok dengan divider baris
+                # Membagi data menjadi blok dengan block_size baris
                 total_rows = len(selected_column_data)
-                blocks = [selected_column_data.iloc[i:i + divider] for i in range(0, total_rows, divider)]
+                blocks = [selected_column_data.iloc[i:i + block_size] for i in range(0, total_rows, block_size)]
 
                 # Membuat DataFrame untuk setiap blok
                 max_length = max(len(block) for block in blocks)
@@ -579,7 +153,13 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                     split_data[f"Part{i + 1}"] = column_data
 
                 # Menghitung standar deviasi untuk setiap kolom
-                stdev_row = split_data.apply(lambda x: np.nanstd(x.dropna()), axis=0)
+                if(isZeroValid):
+                    # Jika isZeroValid adalah true maka nol diakui, jika nol diakui maka tidak ada NaN maka semua dihitung
+                    stdev_row = split_data.apply(lambda x: np.nanstd(x), axis=0)  # Menggunakan np.nanstd untuk menghitung standar deviasi
+                else:
+                    # Jika isZeroValid adalah false maka nol tidak diakui, jika nol tidak diakui maka ada NaN maka Nan didrop
+                    stdev_row = split_data.apply(lambda x: np.std(x.dropna()), axis=0)
+
 
                 # Menyimpan standar deviasi dalam dictionary
                 stdev_summary[sheet_name] = stdev_row.values
@@ -673,24 +253,23 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
             summary_df['TQI Total EN'] = total_column_2
 
 
-            
-
-
-
-            
-
             # Menambahkan kolom total ke DataFrame dengan aturan khusus
             summary_df['Track Number'] = [lines] * len(summary_df)
 
+            # segment length adalah panjang segmen dalam 1 block data stdev dan memiliki satuan meter
+            # Menghitung panjang segmen berdasarkan block_size, misal SAMPLES_PER_METER adalah 4 dan block_size adalah 160 maka segment_length adalah 40 meter berarti 1 block data stdev adalah 40 meter
+            segment_length = segment_length_function(block_size, SAMPLES_PER_METER)
+            
 
-            # Menambahkan kolom "Km Section" dengan aturan khusus
+            # Menambahkan kolom "Meter Section" dengan aturan khusus
+            origin_kilometer_to_meter = origin_kilometer * 1000  # Mengonversi kilometer ke meter
             if(trend=="up"):
-                summary_df['Meter Awal'] = firstvalue*1000 + meter_start + summary_df.index * divider / 4 
+                summary_df['Meter Awal'] = origin_kilometer_to_meter + meter_start + summary_df.index * segment_length   # satuan meter
             elif(trend=="down"):
-                summary_df['Meter Awal'] = firstvalue*1000 + meter_start - summary_df.index * divider / 4 
+                summary_df['Meter Awal'] = origin_kilometer_to_meter + meter_start - summary_df.index * segment_length  # satuan meter
 
             # Menambahkan kolom "Track Length" dengan aturan khusus
-            summary_df['Track Length'] = [divider / 4] * len(summary_df)
+            summary_df['Track Length'] = [segment_length] * len(summary_df)
 
 
              # Menggabungkan kolom 'LPROF_MID' dan 'RPROF_MID' dengan menghitung rata-ratanya
@@ -716,7 +295,12 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
 
             # Menentukan urutan kolom yang diinginkan
             desired_columns = (
-                ['Track Number','Km Awal', 'Meter Awal','Km Akhir', 'Meter Akhir', 'Track Length'] +  # Kolom awal
+                ['Track Number',
+                 'Km Awal',
+                  'Meter Awal',
+                  'Km Akhir',
+                    'Meter Akhir',
+                      'Track Length'] +  # Kolom awal
                 list(stdev_summary.keys()) +  # Kolom dari sheet_name (dinamis)
                 ['TQI Total KAI','TQI Total EN']  # Kolom terakhir
             )
@@ -724,8 +308,8 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
             # Memastikan kolom diurutkan sesuai dengan desired_columns
             summary_df = summary_df[desired_columns]
 
-            # Modifikasi index dengan mengalikan index dengan divider
-            summary_df.index = divider / 4* (summary_df.index+1) 
+            # Modifikasi index dengan mengalikan index dengan block_size
+            summary_df.index = block_size / 4* (summary_df.index+1) 
 
             
             kota = []
@@ -885,7 +469,7 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
             title = [
                 "DATA TRACK QUALITY INDEX (SESUAI PERDIR NOMOR : PER.U/KI.205/XII/1/KA-2023 )",
                 f"TITIK AWAL: {startpoint}",
-                f"KM AWAL: {firstvalue}",
+                f"KM AWAL: {origin_kilometer}",
                 f"TITIK AKHIR: {endpoint}",
                 f"KM AKHIR: {endvalue}",
                 f"TRACK NUMBER: {lines}",
@@ -897,13 +481,6 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
             summary_df_3.to_excel(writer, index=False, header=True, sheet_name="StDevSummary_3 (KAI)")
 
             
-
-           
-
-
-
-            
-
 
             # Akses workbook dan sheet setelah menulis DataFrame
             workbook = writer.book
@@ -918,13 +495,9 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
             sheet= font_set(workbook,sheet)
 
 
-
             
 
-
-            indexname = ['I', 'II', 'III', 'IV']
-
-            for i in range(len(indexname)):
+            for i in range(len(track_classes)):
                 # Membuat DataFrame dengan 5 kolom kosong
                 columns = [
                     'BATAS ATAS TRACK QUALITY (VERY GOOD)',
@@ -936,8 +509,10 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
 
                 summary_temporary = pd.DataFrame(columns=columns)
 
+                # Menghitung panjang segmen berdasarkan block_size, misal SAMPLES_PER_METER adalah 4 dan block_size adalah 160 maka segment_length adalah 40 meter berarti 1 block data stdev adalah 40 meter
+                segment_length = segment_length_function(block_size, SAMPLES_PER_METER)
                 # Menghitung nilai sementara berdasarkan tqi_kelas
-                temporaryvalue = [tqi_kelas(tqi, i, divider/4) for tqi in summary_df['TQI Total KAI']]
+                temporaryvalue = [tqi_kelas(tqi, i, segment_length) for tqi in summary_df['TQI Total KAI']]
                 baris1=0
                 baris2=0
                 baris3=0
@@ -953,21 +528,17 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                 # Menyusun baris-baris data yang diperlukan
                 rows = [
                     [np.nan] * 5,  # Baris kosong
-                    [f"RESUME KELAS JALAN {indexname[i]}","","","",""],
+                    [f"RESUME KELAS JALAN {track_classes[i]}","","","",""],
                     [
-                    
-                     
-                     
-                    f'TOTAL PANJANG TRACK QUALITY (VERY GOOD) (M) TQI < {25+5*i}',
-                    f'TOTAL PANJANG TRACK QUALITY (GOOD) (M) {25+5*i} <= TQI < {40+5*i}',
-                    f'TOTAL PANJANG TRACK QUALITY (FAIR) (M) {40+5*i} <= TQI < {55+5*i}',
-                    f'TOTAL PANJANG TRACK QUALITY (POOR) (M) {55+5*i} <= TQI < {70+5*i}',
-                    f'TOTAL PANJANG TRACK QUALITY (VERY POOR) (M) {70+5*i} >= TQI',
-                     
-                     ],
+                        f'TOTAL PANJANG TRACK QUALITY (VERY GOOD) (M) TQI < {25+5*i}',
+                        f'TOTAL PANJANG TRACK QUALITY (GOOD) (M) {25+5*i} <= TQI < {40+5*i}',
+                        f'TOTAL PANJANG TRACK QUALITY (FAIR) (M) {40+5*i} <= TQI < {55+5*i}',
+                        f'TOTAL PANJANG TRACK QUALITY (POOR) (M) {55+5*i} <= TQI < {70+5*i}',
+                        f'TOTAL PANJANG TRACK QUALITY (VERY POOR) (M) {70+5*i} >= TQI',
+                    ],
                     [baris1,baris2,baris3,baris4,baris5],
                     [np.nan] * 5,
-                    [f"KELAS JALAN {indexname[i]}","","","",""],
+                    [f"KELAS JALAN {track_classes[i]}","","","",""],
                     [
                     f'BATAS ATAS TRACK QUALITY (VERY GOOD) TQI < {25+5*i}',
                     f'BATAS ATAS TRACK QUALITY (GOOD) {25+5*i} <= TQI < {40+5*i}',
@@ -976,7 +547,6 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                     f'BATAS ATAS TRACK QUALITY (VERY POOR) {70+5*i} >= TQI',
                     ],
                 ]
-
                 # Menggabungkan baris-baris menjadi satu DataFrame
                 for row in rows:
                     summary_temporary = pd.concat([summary_temporary, pd.DataFrame([row], columns=columns)], ignore_index=True)
@@ -993,13 +563,13 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                     index=False, 
                     header=False, 
                     startrow=2, 
-                    sheet_name=f"KLASIFIKASI KELAS JALAN {indexname[i]}"
+                    sheet_name=f"KLASIFIKASI KELAS JALAN {track_classes[i]}"
                 )
 
                 
                 # Akses workbook dan sheet setelah menulis DataFrame
                 workbook = writer.book
-                sheetkhusus = workbook[f"KLASIFIKASI KELAS JALAN {indexname[i]}"]
+                sheetkhusus = workbook[f"KLASIFIKASI KELAS JALAN {track_classes[i]}"]
                 # Menambahkan title manual sebelum header dan nilai-nilai
                 title_khusus = [
                     "KLASIFIKASI NILAI TQI  TERHADAP TRACK QUALITY & KELAS JALAN ",
@@ -1020,14 +590,14 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
 
                 # Merge baris ke-4 pada kolom A hingga E
                 sheetkhusus.merge_cells(start_row=4, start_column=1, end_row=4, end_column=5)
-                sheetkhusus.cell(row=4, column=1, value=f"RESUME KELAS JALAN {indexname[i]}")
+                sheetkhusus.cell(row=4, column=1, value=f"RESUME KELAS JALAN {track_classes[i]}")
 
                 # Atur alignment tengah (horizontal dan vertikal)
                 sheetkhusus.cell(row=4, column=1).alignment = Alignment(horizontal="center", vertical="center")
 
                 # Merge baris ke-8 pada kolom A hingga E
                 sheetkhusus.merge_cells(start_row=8, start_column=1, end_row=8, end_column=5)
-                sheetkhusus.cell(row=8, column=1, value=f"KELAS JALAN {indexname[i]}")
+                sheetkhusus.cell(row=8, column=1, value=f"KELAS JALAN {track_classes[i]}")
 
                 # Atur alignment tengah untuk baris ke-8
                 sheetkhusus.cell(row=8, column=1).alignment = Alignment(horizontal="center", vertical="center")
@@ -1039,7 +609,8 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                 datakota.reverse()  # Membalik urutan datakota
             
             
-            for i in range(len(indexname)):
+            for i in range(len(track_classes)):
+                # Definisi kolom DataFrame
                 # Definisi kolom DataFrame
                 columns = [
                     'LINTAS', 'TRACK NUMBER', 'KM AWAL (METER)', 'KM AKHIR (METER)', 'PANJANG (METER)',
@@ -1063,7 +634,7 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                         continue
 
                     # Menghitung nilai sementara berdasarkan tqi_kelas
-                    temporaryvalue = [tqi_kelas(tqi, i, divider / 4) for tqi in filtered_df['TQI Total KAI']]
+                    temporaryvalue = [tqi_kelas(tqi, i, block_size / 4) for tqi in filtered_df['TQI Total KAI']]
 
                     # Inisialisasi variabel akumulasi
                     baris1, baris2, baris3, baris4, baris5 = 0, 0, 0, 0, 0
@@ -1097,14 +668,14 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                     writer,
                     index=False,
                     header=True,
-                    sheet_name=f"SUMMARY REPORT KELAS JALAN {indexname[i]}"
+                    sheet_name=f"SUMMARY REPORT KELAS JALAN {track_classes[i]}"
                 )
 
                 
 
                 # Akses workbook dan sheet untuk modifikasi lebih lanjut
                 workbook = writer.book
-                sheetkhusus_2 = workbook[f"SUMMARY REPORT KELAS JALAN {indexname[i]}"]
+                sheetkhusus_2 = workbook[f"SUMMARY REPORT KELAS JALAN {track_classes[i]}"]
 
                 # Menambahkan judul manual sebelum header
                 title_khusus_2 = ["SUMMARY REPORT",""]
@@ -1143,7 +714,7 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
             title3= [
                 "DATA TRACK QUALITY INDEX (SESUAI EN 13848-6 CoSD )",
                 f"TITIK AWAL: {startpoint}",
-                f"KM AWAL: {firstvalue}",
+                f"KM AWAL: {origin_kilometer}",
                 f"TITIK AKHIR: {endpoint}",
                 f"KM AKHIR: {endvalue}",
                 f"TRACK NUMBER: {lines}",
@@ -1195,7 +766,7 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
             "DATA TRACK QUALITY INDEX",
             "DATA TRACK QUALITY INDEX (SESUAI PERDIR NOMOR : PER.U/KI.205/XII/1/KA-2023 )",
             f"TITIK AWAL: {startpoint}",
-            f"KM AWAL: {firstvalue}",
+            f"KM AWAL: {origin_kilometer}",
             f"TITIK AKHIR: {endpoint}",
             f"KM AKHIR: {endvalue}",
             f"TRACK NUMBER: {lines}",
@@ -1215,7 +786,7 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
             "DATA TRACK QUALITY INDEX",
             "DATA TRACK QUALITY INDEX (SESUAI EN 13848-6 CoSD )",
             f"TITIK AWAL: {startpoint}",
-            f"KM AWAL: {firstvalue}",
+            f"KM AWAL: {origin_kilometer}",
             f"TITIK AKHIR: {endpoint}",
             f"KM AKHIR: {endvalue}",
             f"TRACK NUMBER: {lines}",
@@ -1226,17 +797,14 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
         export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path,title_2,8,[], include_header=True)
 
 
-
-       
-        indexname = ['I', 'II', 'III', 'IV']
-        for i in range(len(indexname)):
-            sheet_name = f"SUMMARY REPORT KELAS JALAN {indexname[i]}"
-            output_pdf_path = f"SUMMARY REPORT KELAS JALAN {indexname[i]}.pdf"
-            title = [f"SUMMARY REPORT KELAS JALAN {indexname[i]}"]
+        for i in range(len(track_classes)):
+            sheet_name = f"SUMMARY REPORT KELAS JALAN {track_classes[i]}"
+            output_pdf_path = f"SUMMARY REPORT KELAS JALAN {track_classes[i]}.pdf"
+            title = [f"SUMMARY REPORT KELAS JALAN {track_classes[i]}"]
             export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, 2, [], include_header=True)
 
-            sheet_name = f"KLASIFIKASI KELAS JALAN {indexname[i]}"
-            output_pdf_path = f"KLASIFIKASI KELAS JALAN {indexname[i]}.pdf"
+            sheet_name = f"KLASIFIKASI KELAS JALAN {track_classes[i]}"
+            output_pdf_path = f"KLASIFIKASI KELAS JALAN {track_classes[i]}.pdf"
             title = [
                 f"KLASIFIKASI NILAI TQI TERHADAP TRACK QUALITY & KELAS JALAN",
                 f"SESUAI PERDIR NOMOR : PER.U/KI.205/XII/1/KA-2023",
@@ -1244,23 +812,44 @@ def process_csv(file_path, selected_headers, divider, firstvalue, encoding,idinp
                 ]
             export_xlsx_to_pdf(xlsx_path, sheet_name, output_pdf_path, title, None, [[4, 7], [9, 'endrow']], include_header=True)
 
-        return "Sukses"
+        # Hitung jumlah segmen per kategori kualitas untuk setiap kelas jalur
+        segment_length = segment_length_function(block_size, SAMPLES_PER_METER)
+        result = {cls: {'Very Good': 0, 'Good': 0, 'Fair': 0, 'Poor': 0, 'Very Poor': 0} for cls in track_classes}
+
+        for i, cls in enumerate(track_classes):
+            # Klasifikasikan setiap nilai TQI
+            for tqi in summary_df['TQI Total KAI']:
+                classification = tqi_kelas(tqi, i, segment_length)
+                # classification adalah array [v_good, good, fair, poor, v_poor]
+                if classification[0] > 0:
+                    result[cls]['Very Good'] += 1
+                elif classification[1] > 0:
+                    result[cls]['Good'] += 1
+                elif classification[2] > 0:
+                    result[cls]['Fair'] += 1
+                elif classification[3] > 0:
+                    result[cls]['Poor'] += 1
+                elif classification[4] > 0:
+                    result[cls]['Very Poor'] += 1
+
+        # Format hasil untuk ditampilkan di GUI
+        result_str = "\n".join(
+            f"Kelas {cls}: Very Good={counts['Very Good']}, Good={counts['Good']}, "
+            f"Fair={counts['Fair']}, Poor={counts['Poor']}, Very Poor={counts['Very Poor']}"
+            for cls, counts in result.items()
+        )
+
+        # Kembalikan hasil
+        return result_str
 
     except Exception as e:
         return f"Terjadi kesalahan: {str(e)}"
-
-# Daftar divider
-divider_values = [str(i) for i in range(20, 101, 5)]  # List: "20", "25", "30", ..., "100"
-divider_values.extend([str(200), str(1000)])
 
 # Layout GUI
 layout = [
     [
         sg.Column([  
             [sg.Text("-----------PERHATIAN-----------")],
-
-            # [sg.Text("Pastikan nama parameter hanya terdiri atas huruf dan angka, tanpa spasi atau tanda baca lainnya.")],
-            # [sg.Text("Misal : VecolictyD1, PRESSUREN2, Velocity")],
 
             [sg.Text("Gunakan awalan LEFT dan RIGHT jika ada parameter yang berpasangan.")],
             [sg.Text("Contoh: gunakan LEFTvelocity1 dan RIGHTvelocity1.")],
@@ -1271,30 +860,32 @@ layout = [
             [sg.Text("Pilih parameter yang ingin diambil:")],
             [sg.Listbox(values=[], select_mode="multiple", size=(50, 10), key="-HEADERS-")],
 
-            [sg.Text("Pilih Meter:")],
-            [sg.Combo(divider_values, default_value="40", key="-DIVIDER-")],
+            [sg.Text("Pilih Meter (Misal pilih 40 maka tiap 40 meter 1 data TQI):")],
+            [sg.Combo(meter_capture_values, default_value="40", key="-meter_capture_value-")],
             
         ], vertical_alignment='top'),  
         sg.VerticalSeparator(),  
         sg.Column([
-            
+            # [sg.Text("-----------PERHATIAN-----------")],
+
+            # [sg.Text("Nilai 0 tidak akan dihitung sehingga dianggap NaN.")],
+            # [sg.Text("Nilai NaN akan diabaikan dalam perhitungan.")],
+            # [sg.Text("Sistem akan melakukan drop terhadap nilai NaN dimana jumlah sampel yang digunakan pasti lebih sedikit.")],
+
             [sg.Text("ID")],
             [sg.Input(size=(10,1), key="-ID_FIRST-"), sg.Text("-"), sg.Input(size=(10,1), key="-ID_END-")],
-            [sg.Text("Nilai Awal (KM) (kosongi untuk otomatis)")],
-            [sg.Input(key="-FIRSTVALUE-")],
+            [sg.Text("Nilai Awal (Km) (Penggunaan . diperbolehkan dan kosong untuk dipilih otomatis)")],
+            [sg.Input(key="-origin_kilometer-")],
             [sg.Text("Pasangan Parameter:")],
             [sg.Listbox(values=[], select_mode="multiple", size=(50, 10), key="-PAIRS-")],
             [sg.Button("Proses"), sg.Button("Keluar")],
-            [sg.Text("", size=(50, 2), key="-OUTPUT-")]
+            [sg.Text("", size=(50, 5), key="-OUTPUT-")]
         ], vertical_alignment='top')  
     ]
 ]
 
 # Membuat jendela GUI
 window = sg.Window("TQI Calculation Report", layout)
-
-
-
 
 # Event loop
 while True:
@@ -1336,8 +927,14 @@ while True:
             pair_strings = [f'{pair[0]} - {pair[1]}' for pair in pairs]
             window["-PAIRS-"].update(pair_strings)
         
-        divider = int(values["-DIVIDER-"]) * 4
-        firstvalue = values["-FIRSTVALUE-"]
+        #block_size (Ukuran Blok)
+        #block_size menentukan berapa banyak baris data yang dimasukkan ke dalam satu blok (segmen) untuk menghitung standar deviasi (stdev) setiap parameter.
+        #Misalnya, jika block_size = 160, setiap blok berisi 160 baris data, yang mewakili satu segmen jalur (40 meter).
+
+        block_size = int(values["-meter_capture_value-"]) * 4
+        
+        # "Origin" menunjukkan titik asal pengukuran dalam kilometer
+        origin_kilometer = values["-origin_kilometer-"]
         
 
         idinput = f"{values['-ID_FIRST-']}-{values['-ID_END-']}"
@@ -1353,7 +950,7 @@ while True:
                 header1, header2 = pair_str.split(' - ')
                 pairs.append((header1, header2))
 
-            result = process_csv(file_path, selected_headers, divider, firstvalue,encoding,idinput)
+            result = process_csv(file_path, selected_headers, block_size, origin_kilometer,encoding,idinput)
             window["-OUTPUT-"].update(result)
 
 window.close()
